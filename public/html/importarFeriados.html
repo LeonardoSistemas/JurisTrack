@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Importar Feriados - JurisTrack</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="/css/menu.css">
+    
+    <link rel="stylesheet" href="/css/importarFeriados.css">
+</head>
+
+<body>
+    
+    <div class="d-flex w-100 min-vh-100">
+        
+        <app-sidebar style="display: contents;"></app-sidebar>
+
+        <div class="flex-grow-1 d-flex justify-content-center  content-area">
+            
+            <div class="container-importacao">
+                <h1>Importação Manual de Feriados</h1>
+
+                <p style="color: #64748b; margin-bottom: 2rem; font-size: 0.95rem; line-height: 1.5;">
+                    Faça upload de uma planilha Excel contendo as colunas<br>
+                    <strong>Data</strong> e <strong>Descrição</strong> para adicionar feriados ao sistema.<br>
+                    <strong>Obs:</strong> A data deve ser no formato yyyy/mm/dd.
+                </p>
+
+                <div class="upload-area">
+                    <input type="file" id="fileInput" accept=".xlsx, .csv" style="display: none;" onchange="updateFileName()">
+                    <label for="fileInput" class="btn-custom">Selecionar Arquivo</label>
+                    <p id="fileName" style="margin-top: 0.75rem; color: #64748b; font-size: 0.9rem;">Nenhum arquivo selecionado
+                    </p>
+                </div>
+
+                <button onclick="uploadFeriados()" class="btn-custom" style="width: 100%;">Enviar Feriados</button>
+
+                <button onclick="downloadModelo()" class="btn-custom btn-outline" style="width: 100%;">Baixar Modelo (Exemplo)</button>
+
+                <div id="message"></div>
+            </div>
+
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+    
+    <script src="/js/components/sidebar.js"></script>
+    <script src="/js/importarFeriados.js"></script>
+    
+</body>
+</html>

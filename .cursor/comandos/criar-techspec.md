@@ -13,13 +13,13 @@
     ## Template e Entradas
 
     - Template Tech Spec: `templates/techspec-template.md`
-    - PRD requerido: `tasks/prd-dashboard/prd.md`
-    - Documento de saída: `tasks/prd-dashboard/techspec.md`
+    - PRD requerido: `tasks/prd-similaridade-conciliacao/prd.md`
+    - Documento de saída: `tasks/prd-similaridade-conciliacao/techspec.md`
 
     ## Pré-requisitos
 
     - Revisar padrões do projeto em @.cursor/rules
-    - Confirmar que o PRD existe em `tasks/prd-dashboard/prd.md`
+    - Confirmar que o PRD existe em `tasks/prd-similaridade-conciliacao/prd.md`
 
     ## Fluxo de Trabalho
 

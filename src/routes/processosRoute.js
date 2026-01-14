@@ -1,12 +1,13 @@
 import express from "express";
-import { 
-  listarProcessos, 
-  obterProcesso, 
-  criarProcesso, 
-  atualizarProcesso, 
+import {
+  listarProcessos,
+  obterProcesso,
+  criarProcesso,
+  atualizarProcesso,
   excluirProcesso,
   criarAndamentoManual,
-  obterContextoModelo 
+  obterContextoModelo,
+  criarPrazo
 } from "../controllers/processosController.js";
 
 const router = express.Router();
@@ -19,6 +20,7 @@ router.delete("/:id", excluirProcesso);
 
 // Rota para o botão "Salvar Andamento"
 router.post("/andamento", criarAndamentoManual);
+router.post("/prazo", criarPrazo);
 
 router.get("/:id/contexto-modelo", obterContextoModelo);
 

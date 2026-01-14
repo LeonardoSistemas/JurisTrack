@@ -4,9 +4,9 @@ Você é um assistente IA responsável por gerenciar um projeto de desenvolvimen
 
 ## Localização dos Arquivos
 
-- PRD: `./tasks/prd-processamento-batimento.md`
-- Tech Spec: `./tasks/-processamento-batimento-techspec.md`
-- Tasks: `./tasks/prd-processamento-batimento/tasks.md`
+- PRD: `./tasks/prd-similaridade-conciliacao.md`
+- Tech Spec: `./tasks/-similaridade-conciliacao-techspec.md`
+- Tasks: `./tasks/prd-similaridade-conciliacao/tasks.md`
 - Regras do Projeto: @.cursor/rules
 
 ## Etapas para Executar

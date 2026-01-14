@@ -1,22 +1,32 @@
 /* Ajuste para o layout com Menu Lateral */
-body { 
-    background-color: #f5f7fb; 
-    display: block; 
+body {
+    background-color: #f5f7fb;
+    display: block;
 }
- /* Remove o display flex centralizado do body original */
-.main-content { background-color: #f5f7fb;
-    min-height: 100vh; 
-    width: 100%; 
+
+/* Remove o display flex centralizado do body original */
+.main-content {
+    background-color: #f5f7fb;
+    min-height: 100vh;
+    width: 100%;
 }
-.nav-link { color: #6c757d; 
-    margin-bottom: 5px; 
+
+.nav-link {
+    color: #6c757d;
+    margin-bottom: 5px;
 }
-.nav-link:hover, .nav-link.active { 
-    color: #3b82f6; 
-    background-color: #eef2ff; border-radius: 
-    5px; font-weight: bold; }
-.nav-link i { 
-    width: 25px; 
+
+.nav-link:hover,
+.nav-link.active {
+    color: #3b82f6;
+    background-color: #eef2ff;
+    border-radius:
+        5px;
+    font-weight: bold;
+}
+
+.nav-link i {
+    width: 25px;
 }
 
 /* Sidebar Styles Standardized */
@@ -28,10 +38,76 @@ body {
     flex-shrink: 0;
 }
 
+/* Global styles */
+.sidebar-backdrop {
+    display: none;
+}
+
 @media (max-width: 767.98px) {
     .sidebar {
-        position: relative !important;
+        position: fixed !important;
+        top: 0;
+        left: 0;
+        height: 100vh;
+        height: 100dvh;
+        z-index: 1050;
+        transform: translateX(-100%);
+        transition: transform 0.3s ease-in-out;
+        background-color: white;
+        box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+        overflow-y: auto;
+        padding-bottom: 80px;
+        /* Garante que o botão Sair não fique escondido */
+    }
+
+    .sidebar.show {
+        transform: translateX(0);
+    }
+
+    /* Mobile Toggle Button Styles */
+    .mobile-menu-toggle {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        z-index: 1060;
+        padding: 0.5rem 1rem;
+        background-color: #fff;
+        border-bottom: 1px solid #dee2e6;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        display: flex;
+        align-items: center;
+        justify-content: flex-start;
         width: 100%;
-        min-height: auto;
+        height: 50px;
+        cursor: pointer;
+        border-radius: 0;
+        /* Remove bordas arredondadas já que é barra full width */
+    }
+
+    /* Adiciona margem ao topo do conteúdo principal no mobile */
+    .flex-grow-1 {
+        margin-top: 50px;
+    }
+
+    .mobile-menu-toggle i {
+        font-size: 1.2rem;
+        color: #333;
+    }
+
+    /* Backdrop for when sidebar is open */
+    .sidebar-backdrop {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        background-color: rgba(0, 0, 0, 0.5);
+        z-index: 1040;
+        display: none;
+    }
+
+    .sidebar-backdrop.show {
+        display: block;
     }
 }

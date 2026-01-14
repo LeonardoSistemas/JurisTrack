@@ -97,7 +97,7 @@ export const criarAndamentoManual = async (req, res) => {
   if (!ensureTenantAuthorization(req, res)) return;
   try {
     const { processoId, data_evento, descricao, responsavelId } = req.body;
-    
+
     // Validação básica
     if (!processoId || !descricao) {
       logWarn("processos.controller.invalid_andamento", "Processo e descrição são obrigatórios.", {
@@ -110,16 +110,16 @@ export const criarAndamentoManual = async (req, res) => {
 
     // Montagem do Payload (Exatamente como no Schema)
     const payload = {
-        "processoId": processoId,      // <--- Igual ao banco "processoId"
-        "responsavelId": responsavelId,// <--- Igual ao banco "responsavelId"
-        "data_evento": data_evento,
-        "descricao": descricao,
-        "tenant_id": req.tenantId      // <--- OBRIGATÓRIO (NOT NULL no schema)
+      "processoId": processoId,      // <--- Igual ao banco "processoId"
+      "responsavelId": responsavelId,// <--- Igual ao banco "responsavelId"
+      "data_evento": data_evento,
+      "descricao": descricao,
+      "tenant_id": req.tenantId      // <--- OBRIGATÓRIO (NOT NULL no schema)
     };
 
     // Insere na tabela "Andamento"
     const { data, error } = await supabase
-      .from("Andamento") 
+      .from("Andamento")
       .insert([payload])
       .select();
 
@@ -133,10 +133,10 @@ export const criarAndamentoManual = async (req, res) => {
       processoId: req.body?.processoId,
       error,
     });
-    
-    res.status(500).json({ 
-        error: "Erro ao salvar andamento.", 
-        details: error.message 
+
+    res.status(500).json({
+      error: "Erro ao salvar andamento.",
+      details: error.message
     });
   }
 };
@@ -145,25 +145,58 @@ export const obterContextoModelo = async (req, res) => {
   if (!ensureTenantAuthorization(req, res)) return;
   try {
     const { id } = req.params; // Pega o ID da URL
-    
+
     // Chama o serviço que criamos acima
     const contexto = await processosService.obterContextoParaModelo(
       id,
       req.tenantId
     );
-    
+
     if (!contexto) {
       return res.status(404).json({ error: "Processo não encontrado para gerar contexto." });
     }
 
     res.status(200).json(contexto);
   } catch (error) {
-    logError("processos.controller.contexto_error", "Erro ao obter contexto do modelo", {
+    logError("processos.controller.contexto_error", "Erro ao obter contexto Modelo", {
       tenantId: req.tenantId,
       userId: req.user?.id,
       processoId: req.params?.id,
       error,
     });
     res.status(500).json({ error: error.message });
+  }
+};
+
+export const criarPrazo = async (req, res) => {
+  if (!ensureTenantAuthorization(req, res)) return;
+  try {
+    const { processoId, descricao, data_limite, responsavelId } = req.body;
+
+    // Validação básica
+    if (!processoId || !descricao || !data_limite) {
+      return res.status(400).json({ error: "Processo, Descrição e Data de Vencimento são obrigatórios." });
+    }
+
+    let descricaoFinal = descricao;
+
+    const novoPrazo = await processosService.criarPrazoManual({
+      processoId,
+      descricao: descricaoFinal,
+      data_limite,
+      responsavelId
+    }, req.tenantId);
+
+    res.status(201).json(novoPrazo);
+
+  } catch (error) {
+    logError("processos.controller.create_prazo_error", "Erro ao criar prazo manual", {
+      tenantId: req.tenantId,
+      userId: req.user?.id,
+      processoId: req.body?.processoId,
+      error,
+    });
+    // RETORNANDO ERRO COMPLETO PARA DEBUG
+    res.status(500).json({ error: "Erro ao criar prazo: " + (error.message || JSON.stringify(error)) });
   }
 };

@@ -114,11 +114,7 @@ canvas {
 }
 
 @media (max-width: 767.98px) {
-    .sidebar {
-        position: relative !important;
-        width: 100%;
-        min-height: auto;
-    }
+    /* .sidebar styles removed to use menu.css implementation */
 
     .main-area {
         padding: 1.5rem 1rem;
@@ -161,4 +157,3 @@ canvas {
         min-height: 200px;
     }
 }
-

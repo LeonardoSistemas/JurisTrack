@@ -5,12 +5,14 @@
 
     A funcionalidade em que você trabalhará é identificada por este slug:
     
-    - PRD requerido: `tasks/prd-dashboard/prd.md`
-    - Tech Spec requerido: `tasks/prd-dashboard/techspec.md`
+    - PRD requerido: `tasks/prd-similaridade-conciliacao/prd.md`
+    - Tech Spec requerido: `tasks/prd-similaridade-conciliacao/techspec.md`
 
     ## Etapas do Processo
 
-    <critical>**ANTES DE GERAR QUALQUER ARQUIVO ME MOSTRE A LISTA DAS TASKS HIGH LEVEL PARA EU APROVAR**</critical>
+    <critical>**ANTES DE GERAR QUALQUER ARQUIVO ME MOSTRE A LISTA DAS TASKS HIGH LEVEL PARA EU APROVAR**
+    **EM CASO DE DÚVIDAS FAÇA PERGUNTAS ANTES DE GERAR QUALQUER ARQUIVO**
+    </critical>
 
     1. **Analisar PRD e Especificação Técnica**
     - Extrair requisitos e decisões técnicas
@@ -34,11 +36,11 @@
     ## Especificações de Saída
 
     ### Localização dos Arquivos
-    - Pasta da funcionalidade: `./tasks/prd-dashboard/`
+    - Pasta da funcionalidade: `./tasks/prd-similaridade-conciliacao/`
     - Template para a lista de tarefas: `./templates/tasks-template.md`
-    - Lista de tarefas: `./tasks/prd-dashboard/tasks.md`
+    - Lista de tarefas: `./tasks/prd-similaridade-conciliacao/tasks.md`
     - Template para cada tarefa individual: `./templates/task-template.md`
-    - Tarefas individuais: `./tasks/prd-dashboard/[num]_task.md`
+    - Tarefas individuais: `./tasks/prd-similaridade-conciliacao/[num]_task.md`
 
 
     ### Formato do Resumo de Tarefas (tasks.md)

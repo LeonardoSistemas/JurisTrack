@@ -66,7 +66,7 @@ export const obterProcessoCompleto = async (id, tenantId) => {
         id,
         texto_integral,
         data_publicacao,
-        Prazo ( * ),
+        Prazo ( *, responsavel:pessoas ( nome ) ),
         Andamento ( * ),
         Historico_Peticoes ( * )
       ),
@@ -214,4 +214,45 @@ export const obterContextoParaModelo = async (idProcesso, tenantId) => {
   };
 
   return contexto;
+};
+
+export const criarPrazoManual = async (dados, tenantId) => {
+  const payload = injectTenant(dados, tenantId);
+
+  // Remove campos de controle interno que não vão pro banco
+  delete payload.processoId;
+
+  // Passo 1: Criar Publicação Manual
+  const publicacaoPayload = {
+    processoid: dados.processoId,
+    data_publicacao: new Date(),
+    texto_integral: dados.descricao, // Salva apenas a descrição pura, sem prefixos, conforme solicitado
+    tenant_id: tenantId
+  };
+
+  const { data: pubData, error: pubError } = await supabase
+    .from("Publicacao")
+    .insert([publicacaoPayload])
+    .select()
+    .single();
+
+  if (pubError) throw pubError;
+
+  // Passo 2: Criar o Prazo linkado
+  const prazoPayload = {
+    descricao: "Prazo Manual", // Salva fixo como solicitado
+    data_limite: dados.data_limite,
+    publicacaoid: pubData.id,
+    responsavelId: dados.responsavelId ? dados.responsavelId : null,
+    tenant_id: tenantId
+  };
+
+  const { data, error } = await supabase
+    .from("Prazo")
+    .insert([prazoPayload])
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
 };

@@ -1,0 +1,97 @@
+body {
+    font-family: 'Inter', sans-serif;
+    background-color: #f4f4f9;
+    /* REMOVIDO: display: flex, justify-content, align-items, height */
+    margin: 0;
+}
+
+/* Área cinza que ocupa o resto da tela à direita do menu */
+.content-area {
+    background-color: #f4f4f9;
+    padding: 20px;
+}
+
+/* O antigo .container agora é específico para não conflitar com Bootstrap */
+.container-importacao {
+    background: white;
+    padding: 2.5rem;
+    border-radius: 12px;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+    width: 100%;
+    max-width: 500px;
+    text-align: center;
+}
+
+h1 {
+    color: #1e293b;
+    margin-bottom: 1.5rem;
+    font-size: 1.5rem;
+    font-weight: 600;
+}
+
+.upload-area {
+    border: 2px dashed #cbd5e1;
+    padding: 2rem;
+    border-radius: 8px;
+    margin-bottom: 1.5rem;
+    transition: all 0.3s;
+    background-color: #f8fafc;
+}
+
+.upload-area:hover {
+    border-color: #3b82f6;
+    background-color: #eff6ff;
+}
+
+/* Renomeado de .btn para .btn-custom para evitar conflito com Bootstrap */
+.btn-custom {
+    background-color: #0f172a;
+    color: white;
+    border: none;
+    padding: 0.8rem 1.5rem;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 500;
+    transition: background 0.3s;
+    font-size: 1rem;
+    display: inline-block;
+    text-decoration: none; /* Caso seja usado em tags <a> */
+}
+
+.btn-custom:hover {
+    background-color: #1e293b;
+    transform: translateY(-1px);
+    color: white;
+}
+
+.btn-outline {
+    background-color: transparent;
+    border: 1px solid #cbd5e1;
+    color: #475569;
+    margin-top: 1rem;
+}
+
+.btn-outline:hover {
+    background-color: #f1f5f9;
+    border-color: #94a3b8;
+    color: #1e293b;
+}
+
+#message {
+    margin-top: 1.5rem;
+    font-size: 0.95rem;
+    font-weight: 500;
+    min-height: 1.5rem;
+}
+
+.success {
+    color: #10b981;
+}
+
+.error {
+    color: #ef4444;
+}
+
+label.btn-custom {
+    display: inline-block;
+}

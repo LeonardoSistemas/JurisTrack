@@ -1,13 +1,14 @@
 import path from "path";
 import moment from "moment-timezone";
+import env from "dotenv";
 
 import { logError, logInfo, logWarn } from "./logger.js";
 
-// URL Webhook N8N (configurável via ambiente)
-const N8N_WEBHOOK_URL =
-  process.env.N8N_WEBHOOK_URL ||
-  "https://agendamentoai-n8n.mapkkt.easypanel.host/webhook/processar_tenant/";
-// Ex. local: http://localhost:5678/webhook/processar
+// Carrega variáveis de ambiente para permitir uso do webhook configurável.
+env.config();
+
+// URL Webhook N8N (definida no .env)
+const N8N_WEBHOOK_URL = process.env.N8N_WEBHOOK_URL;
 
 
 /**

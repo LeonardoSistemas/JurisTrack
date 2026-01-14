@@ -8,9 +8,14 @@ create table if not exists public.tenants (
   id uuid primary key default gen_random_uuid(),
   nome text not null,
   status text not null default 'ativo' check (status in ('ativo','inativo')),
+  openai_api_key text,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+-- Compat: garante coluna mesmo se tabela já existir
+alter table public.tenants
+  add column if not exists openai_api_key text;
 
 create index if not exists idx_tenants_status on public.tenants (status);
 

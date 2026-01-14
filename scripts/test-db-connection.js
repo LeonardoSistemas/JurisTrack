@@ -1,19 +1,30 @@
-import postgresClient from '../src/config/postgresClient.js';
+import { fileURLToPath } from 'node:url';
+import { pool } from '../src/config/postgresClient.js';
 
-(async () => {
+export async function testarConexao() {
+  console.log('Testando conexão com o banco de dados...');
   try {
-    const ok = await postgresClient.testConnection();
-    if (ok) {
-      console.log('Conexão com Postgres OK.');
-    } else {
-      console.error('Conexão retornou resultado inesperado.');
-      process.exitCode = 1;
-    }
+    const result = await pool.query('select 1 as ok');
+    console.log('✅ Conexão com o banco OK:', result.rows[0]);
   } catch (error) {
-    console.error('Falha ao testar conexão com Postgres:', error.message);
-    process.exitCode = 1;
-  } finally {
-    await postgresClient.close();
+    console.error('❌ Erro ao conectar no banco:', error.message);
+    throw error;
   }
-})();
+}
 
+async function main() {
+  try {
+    await testarConexao();
+  } finally {
+    await pool.end();
+  }
+}
+
+const arquivoAtual = fileURLToPath(import.meta.url);
+
+if (process.argv[1] === arquivoAtual) {
+  main().catch((error) => {
+    console.error('Falha ao executar o teste de conexão:', error.message);
+    process.exit(1);
+  });
+}
