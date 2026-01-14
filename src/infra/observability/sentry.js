@@ -1,5 +1,5 @@
 import * as Sentry from "@sentry/node";
-import { nodeProfilingIntegration } from "@sentry/profiling-node";
+//import { nodeProfilingIntegration } from "@sentry/profiling-node";
 
 let sentryEnabled = false;
 let globalHandlersBound = false;
@@ -66,7 +66,7 @@ export function initSentry(app) {
     integrations: [
       Sentry.httpIntegration({ tracing: true }),
       Sentry.expressIntegration({ app }),
-      nodeProfilingIntegration(),
+     // nodeProfilingIntegration(),
     ],
     tracesSampleRate,
     profilesSampleRate,

@@ -1,0 +1,81 @@
+body {
+  background: #f7f9fb;
+}
+
+.main-area {
+  min-height: 100vh;
+}
+
+.status-card {
+  border-left-width: 4px;
+  min-height: 160px;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.05);
+}
+
+.status-card h3 {
+  font-weight: 700;
+}
+
+.texto-publicacao {
+  width: 100%;
+  max-width: none;
+  min-height: 250px;
+  max-height: 500px;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+  background: #f8fafc;
+  border-radius: 8px;
+  padding: 10px 12px;
+  border: 1px solid #e2e8f0;
+  resize: vertical;
+  font-family: "Fira Code", monospace;
+  font-size: 0.95rem;
+}
+
+#payload-input {
+  font-family: "Fira Code", monospace;
+  font-size: 0.9rem;
+}
+
+.processing-pill {
+  font-size: 0.9rem;
+}
+
+.conciliacao-card {
+  position: relative;
+  transition: box-shadow 0.15s ease, transform 0.15s ease, opacity 0.18s ease;
+  border: var(--bs-card-border-width) solid var(--bs-card-border-color) !important;
+  border-left-width: 6px !important;
+  border-left-style: solid !important;
+  border-left-color: transparent !important;
+}
+
+.conciliacao-card.status-primary {
+  border-left-color: var(--bs-primary) !important;
+}
+
+.conciliacao-card.status-danger {
+  border-left-color: var(--bs-danger) !important;
+}
+
+.conciliacao-card.status-warning {
+  border-left-color: var(--bs-warning) !important;
+}
+
+.conciliacao-card.status-secondary {
+  border-left-color: var(--bs-secondary) !important;
+}
+
+.conciliacao-card.card-processing {
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+}
+
+.conciliacao-card.removing {
+  opacity: 0;
+  transform: translateY(-4px);
+}
+
+.conciliacao-status {
+  min-height: 1rem;
+}

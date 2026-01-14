@@ -1,31 +1,29 @@
 ﻿<!DOCTYPE html>
 <html lang="pt-BR">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Petições Manual - Juris Track</title>
-    <link
-      rel="stylesheet"
-      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
-    />
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="/css/peticao.css?v=9999" />
-    <link rel="stylesheet" href="/css/menu.css">
-  </head>
-  <body>
-    <div class="d-flex">
 
-    <div class="bg-white p-3 border-end d-flex flex-column" style="width: 250px; min-height: 100vh; position: sticky; top: 0;">
-            <h4 class="mb-4 text-dark px-2"><i class="fas fa-scale-balanced me-2"></i>Juris Track</h4>
-            <nav class="nav flex-column flex-grow-1">
-                <a class="nav-link" href="/fichaProcessos" onclick="event.preventDefault(); history.back();">
-                  <i class="fas fa-arrow-left"></i> Voltar para Processo
-                </a>
-            </nav>
-        </div>
-    
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Petições Manual - Juris Track</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" />
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="/css/peticao.css?v=9999" />
+  <link rel="stylesheet" href="/css/menu.css">
+</head>
+
+<body>
+  <div class="d-flex">
+
     <div class="container mt-4">
-      
+
+      <nav class="nav">
+        <a href="/fichaProcessos" class="btn btn-outline-secondary d-flex align-items-center gap-2 m-4"
+          onclick="event.preventDefault(); history.back();">
+          <i class="fas fa-arrow-left"></i>
+          Voltar para Processo
+        </a>
+      </nav>
+
       <div class="d-flex justify-content-between align-items-center mb-4">
         <!--<a href="/" class="btn btn-outline-secondary">
           <i class="fas fa-arrow-left me-1"></i>
@@ -40,7 +38,7 @@
         <div class="col-12">
           <div class="card shadow-sm border-0">
             <div class="card-body p-4">
-              
+
               <div class="mb-4 bg-light p-3 rounded border">
                 <label for="selectModelo" class="form-label fw-bold text-primary">
                   1. Selecione o Modelo de Petição:
@@ -53,14 +51,11 @@
                   Ao selecionar um modelo, os dados do processo (Número, Vara, Comarca, Prazos) serão preenchidos <strong>automaticamente</strong> no texto abaixo.
                 </div>---->
               </div>
-              
+
               <h5 class="mb-2 text-secondary">2. Documento Gerado (Editável):</h5>
-              <textarea
-                id="resultadoFinal"
-                class="form-control"
-                placeholder="Aguardando seleção do modelo..."
-              ></textarea>
-              
+              <textarea id="resultadoFinal" class="form-control"
+                placeholder="Aguardando seleção do modelo..."></textarea>
+
               <div class="d-flex justify-content-end mt-4 gap-2">
                 <button id="btnImprimirDocumento" class="btn btn-outline-secondary btn-lg">
                   <i class="fas fa-print me-1"></i> Imprimir
@@ -73,15 +68,15 @@
             </div>
           </div>
         </div>
-      </div> 
+      </div>
 
-    </div> 
-    
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="https://cdn.tiny.cloud/1/1m09uoqqoizka5fkvrogwkfp5zbhmcjh7qra3g1s9hj9x4rh/tinymce/6/tinymce.min.js" referrerpolicy="origin"></script>
+    <script src="https://cdn.tiny.cloud/1/1m09uoqqoizka5fkvrogwkfp5zbhmcjh7qra3g1s9hj9x4rh/tinymce/6/tinymce.min.js"
+      referrerpolicy="origin"></script>
     <script src="/js/gerarPeticao.js?v=9999" type="module"></script>
 
-  </body>
+</body>
+
 </html>
-
-

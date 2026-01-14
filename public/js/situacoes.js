@@ -24,7 +24,7 @@ async function carregar() {
         const tbody = document.getElementById("tabelaCorpo");
 
         if (dados.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="3" class="text-center text-muted">Nenhuma Fase cadastrada.</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted">Nenhuma Situação cadastrada.</td></tr>';
             return;
         }
 
@@ -33,7 +33,10 @@ async function carregar() {
                 ? '<span class="badge bg-success">Ativo</span>' 
                 : '<span class="badge bg-danger">Inativo</span>';
 
-            const idSituacoes = item.idsituacao || item.IdSituacao|| item.idSituacao;
+            // Normaliza o ID (caso venha Case Sensitive ou não)
+            const idSituacoes = item.idsituacao || item.IdSituacao || item.idSituacao;
+            // Garante que simbolo não seja undefined na string
+            const simboloTexto = item.simbolo || '';
 
             return `
             <tr>
@@ -52,11 +55,10 @@ async function carregar() {
     }
 }
 
-
 window.abrirModal = () => {
     document.getElementById("IdRegisto").value = "";
     document.getElementById("Descricao").value = "";
-   
+    
    
     const checkAtivo = document.getElementById("Ativo");
     if(checkAtivo) checkAtivo.checked = true;
@@ -64,10 +66,13 @@ window.abrirModal = () => {
     new bootstrap.Modal(document.getElementById("modalAuxiliar")).show();
 };
 
+// Assinatura atualizada para receber simbolo
 window.editar = (id, desc, status) => {
     document.getElementById("IdRegisto").value = id;
     document.getElementById("Descricao").value = desc;
     
+    
+    // Converte status para booleano caso venha string
     const isActive = (String(status) === 'true');
     const checkAtivo = document.getElementById("Ativo");
     if(checkAtivo) checkAtivo.checked = isActive;
@@ -77,18 +82,17 @@ window.editar = (id, desc, status) => {
 
 window.salvar = async () => {
     const desc = document.getElementById("Descricao").value;
+    
     const checkAtivo = document.getElementById("Ativo");
 
     if (!desc) return alert("A descrição é obrigatória.");
 
-    
     const body = { 
         descricao: desc,
         ativo: checkAtivo ? checkAtivo.checked : true
     };
     
     const id = document.getElementById("IdRegisto").value;
-    
     
     if (id) body[ID_CAMPO] = id;
 
@@ -104,7 +108,7 @@ window.salvar = async () => {
             carregar();
         } else {
             const erro = await res.json();
-            alert("Erro ao salvar: " + (erro.error || "Desconhecido"));
+            alert("Erro ao salvar: " + (erro.error || JSON.stringify(erro)));
         }
     } catch (error) {
         console.error(error);

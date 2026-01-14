@@ -2,6 +2,46 @@ import { formatarDataBR } from "/js/formatarData.js";
 import { formatarDataBR_SoData_UTC } from "/js/formatarData.js";
 
 const AUTH_TOKEN_KEY = "juristrack_token";
+const SIMILARIDADE_EVENT = "similaridadePayload";
+const SIMILARIDADE_UPLOAD_KEY = "similaridade_upload_id";
+
+function switchToSimilaridadeTab() {
+  const tabButton = document.querySelector('[data-bs-target="#tab-similaridade"]');
+  if (tabButton && window.bootstrap?.Tab) {
+    const tab = new bootstrap.Tab(tabButton);
+    tab.show();
+  }
+}
+
+function dispatchSimilaridadePayload(payload, { autoSend = true, source = "Payload recebido do fluxo N8N." } = {}) {
+  if (!payload || !Array.isArray(payload) || payload.length === 0) {
+    console.warn("Payload de similaridade vazio ou inválido", payload);
+    return;
+  }
+
+  window.postMessage(
+    {
+      type: SIMILARIDADE_EVENT,
+      payload,
+      autoSend,
+      source,
+    },
+    "*"
+  );
+  switchToSimilaridadeTab();
+}
+
+function selecionarUploadParaSimilaridade(uploadId) {
+  if (!uploadId) return;
+  try {
+    sessionStorage.setItem(SIMILARIDADE_UPLOAD_KEY, uploadId);
+  } catch {
+    // ignore storage errors
+  }
+  window.__SIMILARIDADE_UPLOAD_ID__ = uploadId;
+  window.postMessage({ type: "similaridadeUploadId", uploadId }, "*");
+  switchToSimilaridadeTab();
+}
 function authFetch(url, options = {}) {
   const token = localStorage.getItem(AUTH_TOKEN_KEY);
   if (!token) {
@@ -14,6 +54,9 @@ function authFetch(url, options = {}) {
 
 const form = document.getElementById("uploadForm");
 const messageDiv = document.getElementById("message");
+const filtroDataInicio = document.getElementById("filtro-data-inicio");
+const filtroDataFim = document.getElementById("filtro-data-fim");
+const btnAplicarFiltros = document.getElementById("btn-aplicar-filtros");
 
 if (form) {
   form.addEventListener("submit", async (e) => {
@@ -31,11 +74,22 @@ if (form) {
       });
 
       const result = await response.json();
+      console.log("upload/analise response", result);
 
       if (response.ok) {
         messageDiv.textContent = "Sucesso! Análise iniciada.";
         messageDiv.className = "mt-3 text-center fw-bold text-success";
         carregarTabela();
+        const payload =
+          result?.payloadSimilaridade ||
+          result?.payload ||
+          result?.similaridadePayload;
+        if (payload) {
+          dispatchSimilaridadePayload(payload, {
+            autoSend: true,
+            source: "Payload retornado após upload/N8N.",
+          });
+        }
         form.reset();
       } else {
         messageDiv.textContent = "Erro: " + (result.error || "Falha desconhecida");
@@ -49,25 +103,42 @@ if (form) {
   });
 }
 
-// ... (Restante do arquivo: carregarTabela, carregarResultadoModal, formatarDataBR, etc. mantém-se igual)
 async function carregarTabela() {
   try {
     const response = await authFetch("/upload/publicacoes");
     if (!response.ok) throw new Error("Erro ao buscar dados");
 
     const dados = await response.json();
+    const inicio = filtroDataInicio?.value ? new Date(filtroDataInicio.value) : null;
+    const fim = filtroDataFim?.value ? new Date(filtroDataFim.value) : null;
+
+    const filtrados = Array.isArray(dados)
+      ? dados.filter((publicacao) => {
+          if (!inicio && !fim) return true;
+          const data = publicacao.data_upload ? new Date(publicacao.data_upload) : null;
+          if (!data || Number.isNaN(data.getTime())) return false;
+          if (inicio && data < inicio) return false;
+          if (fim) {
+            const endDay = new Date(fim);
+            endDay.setHours(23, 59, 59, 999);
+            if (data > endDay) return false;
+          }
+          return true;
+        })
+      : [];
+
     const tbody = document.querySelector("#tablesPublicacoes tbody");
     if(!tbody) return;
 
     tbody.innerHTML = ""; 
 
-    dados.forEach((publicacao) => {
+    filtrados.forEach((publicacao) => {
       const formattedDate = formatarDataBR(publicacao.data_upload);
       let statusHtml;
 
       if (publicacao.status === "processado") {
-        statusHtml = `<button type="button" class="btn btn-success btn-sm" 
-                              data-bs-toggle="modal" data-bs-target="#resultadoModal" 
+        statusHtml = `<button type="button" class="btn btn-success btn-sm btn-ver-similaridade" 
+                              data-upload-id="${publicacao.id}" 
                               data-nome-arquivo="${publicacao.nome_arquivo}"> 
                         <i class="fas fa-check-circle me-1"></i> Processado
                       </button>`;
@@ -96,7 +167,14 @@ async function carregarTabela() {
       tbody.appendChild(tr);
     });
 
-    if (dados.length === 0) {
+    tbody.querySelectorAll(".btn-ver-similaridade").forEach((btn) => {
+      btn.addEventListener("click", (e) => {
+        const uploadId = e.currentTarget.getAttribute("data-upload-id");
+        selecionarUploadParaSimilaridade(uploadId);
+      });
+    });
+
+    if (filtrados.length === 0) {
       tbody.innerHTML = `<tr><td colspan="5" class="text-center text-muted">Nenhum arquivo em análise.</td></tr>`;
     }
   } catch (error) {
@@ -149,6 +227,12 @@ async function carregarResultadoModal(nome_arquivo) {
 document.addEventListener("DOMContentLoaded", () => {
   carregarTabela();
   setInterval(carregarTabela, 10000); 
+
+  if (btnAplicarFiltros) {
+    btnAplicarFiltros.addEventListener("click", () => {
+      carregarTabela();
+    });
+  }
 
   const resultadoModal = document.getElementById("resultadoModal");
   if (resultadoModal) {

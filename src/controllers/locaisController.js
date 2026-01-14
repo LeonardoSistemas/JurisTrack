@@ -12,7 +12,9 @@ export const getEstados = async (req, res) => {
 
 export const postEstado = async (req, res) => {
   try {
-    const resultado = await locaisService.salvarEstado(req.body);
+    // CORREÇÃO: Injetar tenant_id
+    const payload = { ...req.body, tenant_id: req.tenantId };
+    const resultado = await locaisService.salvarEstado(payload);
     res.status(201).json(resultado);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -24,7 +26,6 @@ export const deleteEstado = async (req, res) => {
     await locaisService.deletarEstado(req.params.id);
     res.status(204).send();
   } catch (error) {
-    // Verifica se o erro é de chave estrangeira (violates foreign key constraint)
     if (error.message.includes("violates foreign key constraint")) {
       return res.status(409).json({ 
         error: "Não é possível excluir este estado pois existem cidades vinculadas a ele." 
@@ -43,9 +44,12 @@ export const getCidades = async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 };
+
 export const postCidade = async (req, res) => {
   try {
-    const resultado = await locaisService.salvarCidade(req.body);
+    // CORREÇÃO: Injetar tenant_id
+    const payload = { ...req.body, tenant_id: req.tenantId };
+    const resultado = await locaisService.salvarCidade(payload);
     res.status(201).json(resultado);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -57,10 +61,9 @@ export const deleteCidade = async (req, res) => {
     await locaisService.deletarCidade(req.params.id);
     res.status(204).send();
   } catch (error) {
-    // Verifica se o erro é de chave estrangeira (violates foreign key constraint)
     if (error.message.includes("violates foreign key constraint")) {
       return res.status(409).json({ 
-        error: "Não é possível excluir este estado pois existem cidades vinculadas a ele." 
+        error: "Não é possível excluir esta cidade pois existem registros vinculados a ela." 
       });
     }
     res.status(500).json({ error: error.message });

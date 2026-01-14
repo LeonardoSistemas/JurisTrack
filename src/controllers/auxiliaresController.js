@@ -12,7 +12,13 @@ export const listar = (tabela) => async (req, res) => {
 
 export const salvar = (tabela, campoId) => async (req, res) => {
   try {
-    const resultado = await auxiliaresService.salvarRegisto(tabela, campoId, req.body);
+    // CORREÇÃO: Injetar o tenant_id no payload
+    const payload = {
+      ...req.body,
+      tenant_id: req.tenantId
+    };
+
+    const resultado = await auxiliaresService.salvarRegisto(tabela, campoId, payload);
     res.status(201).json(resultado);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -35,7 +41,7 @@ export const excluir = (tabela, campoId) => async (req, res) => {
     // Erro 23503: Código do Postgres para violação de chave estrangeira
     if (error.code === '23503') {
       return res.status(409).json({ 
-        error: "Esta comarca possui processos vinculados e não pode ser removida para preservar o histórico jurídico." 
+        error: "Este registro possui vínculos (processos ou outros) e não pode ser removido para preservar o histórico." 
       });
     }
 

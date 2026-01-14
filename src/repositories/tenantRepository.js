@@ -8,7 +8,7 @@ export async function findTenantById(tenantId) {
 
   const { data, error } = await supabase
     .from("tenants")
-    .select("id, nome, status, created_at, updated_at")
+    .select("id, nome, status, openai_api_key, created_at, updated_at")
     .eq("id", tenantId)
     .maybeSingle();
 

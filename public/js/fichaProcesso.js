@@ -1,6 +1,6 @@
 // Variável global para armazenar as publicações carregadas
 let cachePublicacoes = [];
-let partesProcesso = []; 
+let partesProcesso = [];
 let listaPessoasCache = [];
 
 const AUTH_TOKEN_KEY = "juristrack_token";
@@ -140,7 +140,7 @@ async function carregarDadosProcesso(id) {
         setVal("id_moeda", proc.idmoeda);
         setVal("IdComarca", proc.idcomarca);
         setVal("IdVara", proc.idvara);
-        setVal("id_advogado", proc.idadvogado); 
+        setVal("id_advogado", proc.idadvogado);
 
         // Carrega Partes
         partesProcesso = [];
@@ -151,7 +151,7 @@ async function carregarDadosProcesso(id) {
                 nome: p.pessoas.nome,
                 cpf: p.pessoas.cpf_cnpj
             }));
-        } 
+        }
         renderizarTabelaPartes();
 
         if (proc.data_distribuicao) document.getElementById("DataDistribuicao").value = proc.data_distribuicao.split("T")[0];
@@ -166,11 +166,12 @@ async function carregarDadosProcesso(id) {
 
         cachePublicacoes = proc.Publicacao || [];
 
-        renderizarPrazos(proc.Publicacao);
+        // CORREÇÃO: Passar o objeto 'proc' completo, pois a função agora espera ele para ler o advogado
+        renderizarPrazos(proc);
         renderizarAndamentos(proc);
 
         // Carrega documentos
-        carregarDocumentosDoProcesso(id);
+        await carregarDocumentosDoProcesso(id);
 
     } catch (error) {
         console.error(error);
@@ -315,7 +316,7 @@ window.salvarPessoaModal = async function () {
         if (res.ok) {
             alert("Pessoa salva com sucesso!");
             bootstrap.Modal.getInstance(document.getElementById("modalGerenciarPessoa")).hide();
-            await carregarPessoas(); 
+            await carregarPessoas();
         } else {
             alert("Erro ao salvar pessoa.");
         }
@@ -387,38 +388,113 @@ window.excluirProcesso = async function () {
 };
 
 // --- RENDERIZA PRAZOS ---
-function renderizarPrazos(listaPublicacoes) {
-    const tbody = document.getElementById("tabelaPrazos");
+function renderizarPrazos(proc) {
+    const tbody = document.querySelector("#tab-prazos tbody");
     if (!tbody) return;
     tbody.innerHTML = "";
-    let prazosEncontrados = [];
-    if (listaPublicacoes && listaPublicacoes.length > 0) {
-        listaPublicacoes.forEach(pub => {
-            if (pub.Prazo && pub.Prazo.length > 0) {
-                pub.Prazo.forEach(prazo => {
-                    prazo.publicacaoid = pub.id;
-                    prazosEncontrados.push(prazo);
+
+    // Configura opções de responsável no modal
+    if (proc.advogado) {
+        const selectResp = document.getElementById("respPrazoManual");
+        if (selectResp) selectResp.innerHTML = `<option value="${proc.advogado.idpessoa}">${proc.advogado.nome}</option>`;
+
+        const selectRespAnd = document.getElementById("respAndamentoManual");
+        if (selectRespAnd) selectRespAnd.innerHTML = `<option value="${proc.advogado.idpessoa}">${proc.advogado.nome}</option>`;
+    }
+
+    const prazosEncontrados = [];
+
+    if (proc.Publicacao && Array.isArray(proc.Publicacao)) {
+        proc.Publicacao.forEach(pub => {
+            // Garante que prazos seja um array, mesmo que venha como objeto ou nulo
+            let listaPrazos = [];
+            if (Array.isArray(pub.Prazo)) {
+                listaPrazos = pub.Prazo;
+            } else if (pub.Prazo) {
+                listaPrazos = [pub.Prazo];
+            }
+
+            if (listaPrazos.length > 0) {
+                listaPrazos.forEach(prazo => {
+                    // Tenta identificar o responsável
+                    // 1. Tenta pegar pelo join direto com a tabela pessoas (NOVO MODELO)
+                    let nomeResponsavel = "Sistema";
+
+                    if (prazo.responsavel && prazo.responsavel.nome) {
+                        nomeResponsavel = prazo.responsavel.nome;
+                    } else {
+                        // 2. Fallback para modelo antigo (Parse do texto da publicação)
+                        // Verifica se é manual (pela string de "Prazo Manual" que colocamos no texto da publicação fictícia)
+                        const isManual = pub.texto_integral && pub.texto_integral.includes("Prazo Manual");
+
+                        if (isManual) {
+                            nomeResponsavel = "Manual";
+
+                            // Tenta extrair o nome do responsável do texto salvo (Formato: "Prazo Manual | Resp: NOME | ...")
+                            if (pub.texto_integral.includes("| Resp: ")) {
+                                try {
+                                    const parts = pub.texto_integral.split("| Resp: ");
+                                    if (parts.length > 1) {
+                                        // Pega o trecho após "Resp: " e antes do próximo pipe ou fim da string
+                                        nomeResponsavel = parts[1].split("|")[0].trim();
+                                    }
+                                } catch (e) {
+                                    console.warn("Erro ao fazer parse do responsável do prazo", e);
+                                }
+                            }
+                        }
+                    }
+
+                    prazosEncontrados.push({ ...prazo, responsavel: nomeResponsavel });
                 });
             }
         });
     }
+
+
+
     if (prazosEncontrados.length === 0) {
         tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">Nenhum prazo cadastrado</td></tr>';
         return;
     }
     prazosEncontrados.sort((a, b) => new Date(a.data_limite) - new Date(b.data_limite));
     prazosEncontrados.forEach(p => {
-        const dataVenc = p.data_limite ? new Date(p.data_limite).toLocaleDateString('pt-BR') : 'Sem data';
+
+        // Se vier como string YYYY-MM-DD, fazemos split.
+        let dataVenc = 'Sem data';
+        if (p.data_limite) {
+            // Se já for data completa ISO com T, new Date funciona. Mas supabase manda date yyyy-mm-dd
+            if (p.data_limite.includes('T')) {
+                dataVenc = new Date(p.data_limite).toLocaleDateString('pt-BR', { timeZone: 'UTC' });
+            } else {
+                const [ano, mes, dia] = p.data_limite.split('-');
+                dataVenc = `${dia}/${mes}/${ano}`;
+            }
+        }
+
         const hoje = new Date();
-        const dataLimiteObj = p.data_limite ? new Date(p.data_limite) : null;
+        hoje.setHours(0, 0, 0, 0); // Zera hora para comparar apenas data
+
+        // Para comparação correta, criamos data interpretando como local ou meio dia
+        let dataLimiteObj = null;
+        if (p.data_limite) {
+            const [ano, mes, dia] = p.data_limite.split('T')[0].split('-');
+            dataLimiteObj = new Date(ano, mes - 1, dia); // Mês é 0-indexed
+        }
+
+        // const dataLimiteObj = p.data_limite ? new Date(p.data_limite) : null; // VEIO ERRADO ANTES (UTC < Local time zone shift)
         let statusBadge = '<span class="badge bg-secondary">Pendente</span>';
         if (dataLimiteObj && dataLimiteObj < hoje) {
             statusBadge = '<span class="badge bg-danger">Vencido</span>';
         } else if (dataLimiteObj) {
             statusBadge = '<span class="badge bg-warning text-dark">Em Aberto</span>';
         }
+
+        // Renderiza coluna responsável
+        let respHtml = p.responsavel === "Sistema" ? `<span class="badge bg-light text-dark border">Sistema</span>` : `<span class="badge bg-info text-dark">${p.responsavel}</span>`;
+
         const tr = document.createElement("tr");
-        tr.innerHTML = `<td>${p.descricao || "Prazo processual"}</td><td class="fw-bold">${dataVenc}</td><td>-</td><td>${statusBadge}</td><td class="text-end"><button type="button" class="btn btn-sm btn-outline-primary" onclick="verPublicacao('${p.publicacaoid}')"><i class="fas fa-eye"></i></button></td>`;
+        tr.innerHTML = `<td>${p.descricao || "Prazo processual"}</td><td class="fw-bold">${dataVenc}</td><td>${respHtml}</td><td>${statusBadge}</td><td class="text-end"><button type="button" class="btn btn-sm btn-outline-primary" onclick="verPublicacao('${p.publicacaoid}')"><i class="fas fa-eye"></i></button></td>`;
         tbody.appendChild(tr);
     });
 }
@@ -432,10 +508,10 @@ function renderizarAndamentos(proc) {
         <div class="d-flex justify-content-between align-items-center mb-3 mt-3">
             <h5 class="mb-0">Histórico de Movimentações</h5>
             <div>
-                 <button type="button" class="btn btn-primary btn-sm me-2" onclick="irParaGerarPeticao()">
+                 <button type="button" class="btn btn-primary btn-sm me-2 m-2" onclick="irParaGerarPeticao()">
                     <i class="fas fa-file-signature"></i> Nova Petição
                 </button>
-                <button type="button" class="btn btn-outline-secondary btn-sm" onclick="abrirModalAndamento()">
+                <button type="button" class="btn btn-outline-secondary btn-sm m-2" onclick="abrirModalAndamento()">
                     <i class="fas fa-plus"></i> Novo Andamento
                 </button>
             </div>
@@ -522,7 +598,7 @@ function renderizarAndamentos(proc) {
             const dataFmt = evt.data ? new Date(evt.data).toLocaleDateString('pt-BR') : "-";
             let badgeResp = `<span class="badge bg-secondary">${evt.responsavel}</span>`;
             if (evt.responsavel !== "Sistema") badgeResp = `<span class="badge bg-info text-dark">${evt.responsavel}</span>`;
-            
+
             const tr = document.createElement("tr");
             tr.innerHTML = `<td>${dataFmt}</td><td>${evt.descricao}</td><td>${badgeResp}</td><td><small class="text-muted">${evt.tipo}</small></td>`;
             tbody.appendChild(tr);
@@ -613,7 +689,7 @@ function configurarUpload() {
             input.addEventListener("change", async (e) => {
                 if (e.target.files.length > 0) {
                     await fazerUploadProcesso(e.target.files[0]);
-                    e.target.value = ""; 
+                    e.target.value = "";
                 }
             });
         }
@@ -638,12 +714,12 @@ async function fazerUploadProcesso(file) {
     formData.append("file", file);
     formData.append("processoId", idProcesso);
     formData.append("numProcesso", numProcesso);
-    
+
     // ALTERAÇÃO IMPORTANTE: Flag para ignorar N8N
     formData.append("ignorarN8N", "true");
 
     try {
-        if(btnUpload) {
+        if (btnUpload) {
             btnUpload.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Enviando...';
             btnUpload.disabled = true;
         }
@@ -722,24 +798,113 @@ async function carregarDocumentosDoProcesso(idProcesso) {
     } catch (error) {
         tbody.innerHTML = '<tr><td colspan="5" class="text-center text-danger">Erro ao carregar documentos.</td></tr>';
     }
+
+    // Reaplica bloqueio se estiver em modo leitura (para garantir)
+    if (new URLSearchParams(window.location.search).get("modo") === 'leitura') {
+        bloquearEdicao();
+    }
 }
 
 function bloquearEdicao() {
     const titulo = document.getElementById("headerTitulo");
     if (titulo) titulo.innerHTML = '<i class="fas fa-lock"></i> Visualizar Processo (Leitura)';
-    
+
+    // Desabilitar inputs
     document.querySelectorAll("input, select, textarea").forEach(campo => {
         campo.disabled = true;
         campo.style.backgroundColor = "#e9ecef";
         campo.style.cursor = "not-allowed";
     });
 
-    ["btnSalvar", "btnExcluir", "btnAdicionarDoc"].forEach(id => {
-        const btn = document.getElementById(id);
-        if (btn) btn.style.display = "none";
-    });
+    // Lista de selctores para esconder botões de ação
+    const selectorsToHide = [
+        "#btnSalvar",
+        "#btnExcluir",
+        "#btnAdicionarDoc",
+        "button[onclick='salvarProcesso()']",
+        "button[onclick='adicionarLinhaParte()']", // Adicionar Partes
+        "#tab-partes button", // Botões na aba partes (incluindo ações da tabela)
+        "#tab-andamentos button", // Nova Petição, Novo Andamento
+        "#tab-documentos button", // Upload de arquivos, ações da tabela
+        "#tab-prazos button", // Ações da tabela de prazos
+        ".tab-content .btn-outline-danger", // Botões de excluir (apenas dentro das abas)
+        ".tab-content .btn-outline-secondary", // Botões de editar (apenas dentro das abas)
+        "td button" // Botões em células de tabela (Geralmente excluir/editar)
+    ];
 
-    document.querySelectorAll("#tab-andamentos button, #tab-documentos button").forEach(btn => btn.style.display = "none");
-    const btnSalvarGenerico = document.querySelector("button[onclick='salvarProcesso()']");
-    if (btnSalvarGenerico) btnSalvarGenerico.style.display = "none";
+    selectorsToHide.forEach(selector => {
+        document.querySelectorAll(selector).forEach(el => {
+            el.style.display = "none";
+        });
+    });
 }
+
+// --- FUNÇÕES DE PRAZO MANUAL (Adicionadas no final para garantir carregamento) ---
+window.abrirModalPrazo = function () {
+    // Copia opções de advogados para o select de responsáveis do prazo
+    const selectOrigem = document.getElementById("id_advogado");
+    const selectDestino = document.getElementById("respPrazoManual");
+
+    if (selectOrigem && selectDestino) {
+        selectDestino.innerHTML = selectOrigem.innerHTML;
+    }
+
+    // Limpa campos e define valor padrão
+    document.getElementById("descPrazoManual").value = "";
+    document.getElementById("dataPrazoManual").value = "";
+    document.getElementById("respPrazoManual").value = "";
+
+    const modalEl = document.getElementById("modalNovoPrazo");
+    if (modalEl) new bootstrap.Modal(modalEl).show();
+    else alert("Erro: Modal de prazo não encontrado no HTML.");
+};
+
+window.salvarPrazoManual = async function () {
+    const idProcesso = document.getElementById("IdProcesso").value;
+    const descricao = document.getElementById("descPrazoManual").value;
+    const dataLimite = document.getElementById("dataPrazoManual").value;
+    const responsavelId = document.getElementById("respPrazoManual").value;
+
+    if (!descricao || !dataLimite) {
+        alert("Descrição e Data de Vencimento são obrigatórios!");
+        return;
+    }
+
+    const payload = {
+        processoId: idProcesso,
+        descricao: descricao,
+        data_limite: dataLimite,
+        responsavelId: responsavelId
+    };
+
+    try {
+        const btnSalvar = document.querySelector("#modalNovoPrazo .btn-primary");
+        const textoOriginal = btnSalvar.innerHTML;
+        btnSalvar.disabled = true;
+        btnSalvar.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Salvando...';
+
+        const res = await authFetch("/api/processos/prazo", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload)
+        });
+
+        if (res.ok) {
+            alert("Prazo manual criado com sucesso!");
+            bootstrap.Modal.getInstance(document.getElementById("modalNovoPrazo")).hide();
+            await carregarDadosProcesso(idProcesso);
+        } else {
+            const err = await res.json();
+            alert("Erro ao criar prazo: " + (err.error || "Desconhecido"));
+        }
+
+        btnSalvar.disabled = false;
+        btnSalvar.innerHTML = textoOriginal;
+
+    } catch (e) {
+        alert("Erro de conexão ao salvar prazo.");
+        console.error(e);
+        const btnSalvar = document.querySelector("#modalNovoPrazo .btn-primary");
+        if (btnSalvar) btnSalvar.disabled = false;
+    }
+};
