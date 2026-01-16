@@ -17,63 +17,76 @@ class AppSidebar extends HTMLElement {
         <nav class="nav flex-column flex-grow-1">
             <small class="text-muted text-uppercase fw-bold mb-2 px-2" style="font-size: 0.75rem;">Principal</small>
             <a class="nav-link" href="/dashboard"><i class="fas fa-chart-line"></i> Dashboard</a>
-            <a class="nav-link" href="/upload"><i class="fas fa-cloud-upload-alt"></i> Upload / Inicio</a>
+            <a class="nav-link" href="/upload"><i class="fas fa-cloud-upload-alt"></i> Análise de publicações</a>
             <a class="nav-link" href="/processos"><i class="fas fa-gavel"></i> Processos</a>
-            <a class="nav-link" href="/similaridade"><i class="fas fa-clone"></i> Similaridade</a>
             
-            <small class="text-muted text-uppercase fw-bold mt-4 mb-2 px-2" style="font-size: 0.75rem;">Cadastros</small>
-        
-            <a class="nav-link" href="/usuarios">
-                <i class="fas fa-users"></i> Usuários
-            </a>
-            <a class="nav-link" href="/gerenciarPeticao">
-                <i class="fas fa-file-contract"></i> Modelos
-            </a>
-            <a class="nav-link" href="/historico">
-                <i class="fas fa-history"></i> Histórico
-            </a>
-            <a class="nav-link" href="/cidades">
-                <i class="fas fa-city"></i> Cidades
-            </a>
-            <a class="nav-link" href="/estados">
-                <i class="fas  fa-map-marker-alt"></i> Estados
-            </a>
-            <a class="nav-link" href="/comarcas">
-                <i class="fas fa-map-signs"></i> Comarcas
-            </a>
-            <a class="nav-link" href="/tribunais">
-                <i class="fas fa-landmark"></i> Tribunais
-            </a>
-            <a class="nav-link" href="/varas">
-                <i class="fas fa-balance-scale"></i> Varas
-            </a>
-            <a class="nav-link" href="/instancias">
-                <i class="fas fa-layer-group"></i> Instâncias
-            </a>
-            <a class="nav-link" href="/esferas">
-                <i class="fas fa-globe"></i> Esferas
-            </a>
-            <a class="nav-link" href="/fases">
-                <i class="fas fa-clock"></i> Fases
-            </a>
-             <a class="nav-link" href="/moedas">
-                <i class="fa-solid fa-money-bill"></i> Moedas
-            </a>
-            <a class="nav-link" href="/pessoas">
-                <i class="fa-duotone fa-regular fa-user"></i> Pessoas
-            </a>
-            <a class="nav-link" href="/ritos">
-                <i class="fa-solid fa-inbox"></i> Ritos
-            </a>
-            <a class="nav-link" href="/probabilidades">
-                <i class="fa-solid fa-rotate"></i> Probabilidades
-            </a>
-            <a class="nav-link" href="/situacoes">
-                <i class="fa-brands fa-stack-overflow"></i> Situações
-            </a>
-            <a class="nav-link" href="/tipoAcao">
-                <i class="fa-solid fa-align-right"></i> Tipo de Ações
-            </a>
+            <div class="mt-4">
+                <a class="d-flex justify-content-between align-items-center text-muted text-uppercase fw-bold px-2 text-decoration-none" 
+                   data-bs-toggle="collapse" href="#collapseCadastros" role="button" aria-expanded="false" aria-controls="collapseCadastros"
+                   style="font-size: 0.75rem;">
+                   <span>Cadastros</span>
+                   <i class="fas fa-chevron-down ms-1" style="font-size: 0.65rem;"></i>
+                </a>
+                
+                <div class="collapse" id="collapseCadastros">
+                    <div class="nav flex-column mt-1">
+                        <a class="nav-link" href="/usuarios">
+                            <i class="fas fa-users"></i> Usuários
+                        </a>
+                        <a class="nav-link" href="/importar-feriados">
+                            <i class="fas fa-calendar-alt"></i> Cadastros de Feriados
+                        </a>
+                        <a class="nav-link" href="/gerenciarPeticao">
+                            <i class="fas fa-file-contract"></i> Modelos
+                        </a>
+                        <a class="nav-link" href="/historico">
+                            <i class="fas fa-history"></i> Histórico
+                        </a>
+                        <a class="nav-link" href="/cidades">
+                            <i class="fas fa-city"></i> Cidades
+                        </a>
+                        <a class="nav-link" href="/estados">
+                            <i class="fas  fa-map-marker-alt"></i> Estados
+                        </a>
+                        <a class="nav-link" href="/comarcas">
+                            <i class="fas fa-map-signs"></i> Comarcas
+                        </a>
+                        <a class="nav-link" href="/tribunais">
+                            <i class="fas fa-landmark"></i> Tribunais
+                        </a>
+                        <a class="nav-link" href="/varas">
+                            <i class="fas fa-balance-scale"></i> Varas
+                        </a>
+                        <a class="nav-link" href="/instancias">
+                            <i class="fas fa-layer-group"></i> Instâncias
+                        </a>
+                        <a class="nav-link" href="/esferas">
+                            <i class="fas fa-globe"></i> Esferas
+                        </a>
+                        <a class="nav-link" href="/fases">
+                            <i class="fas fa-clock"></i> Fases
+                        </a>
+                         <a class="nav-link" href="/moedas">
+                            <i class="fa-solid fa-money-bill"></i> Moedas
+                        </a>
+                        <a class="nav-link" href="/pessoas">
+                            <i class="fa-duotone fa-regular fa-user"></i> Pessoas
+                        </a>
+                        <a class="nav-link" href="/ritos">
+                            <i class="fa-solid fa-inbox"></i> Ritos
+                        </a>
+                        <a class="nav-link" href="/probabilidades">
+                            <i class="fa-solid fa-rotate"></i> Probabilidades
+                        </a>
+                        <a class="nav-link" href="/situacoes">
+                            <i class="fa-brands fa-stack-overflow"></i> Situações
+                        </a>
+                        <a class="nav-link" href="/tipoAcao">
+                            <i class="fa-solid fa-align-right"></i> Tipo de Ações
+                        </a>
+                    </div>
+                </div>
+            </div>
         </nav>
         
         <div class="mt-auto pt-3 border-top">
@@ -137,9 +150,13 @@ class AppSidebar extends HTMLElement {
             const href = link.getAttribute('href');
             if (href === currentPath || (href !== '/' && currentPath.startsWith(href))) {
                 link.classList.add('active');
-                // If it's "Processos", make sure we match exactly or roughly correct
-                // For example if href is /processos, and current is /processos/123, it should match?
-                // simple equality or startsWith is often enough.
+                
+                // Se o link estiver dentro de um collapse, abre ele
+                const parentCollapse = link.closest('.collapse');
+                if (parentCollapse && window.bootstrap?.Collapse) {
+                    const bsCollapse = bootstrap.Collapse.getOrCreateInstance(parentCollapse, { toggle: false });
+                    bsCollapse.show();
+                }
             } else {
                 link.classList.remove('active');
             }

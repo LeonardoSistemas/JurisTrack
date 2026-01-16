@@ -13,7 +13,7 @@
 
     - Template fonte: `./template/prd-template-analise-IA.md`
     - Nome do arquivo final: `prd.md`
-    - Diretório final: `./tasks/salvar-analise-pub/` (nome em kebab-case)
+    - Diretório final: `./tasks/prd-tipo_andamento-pub/` (nome em kebab-case)
 
     ## Fluxo de Trabalho
 

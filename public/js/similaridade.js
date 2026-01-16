@@ -235,6 +235,7 @@ function renderConciliacaoCards(items) {
     const dataPublicacao = formatDateIso(item.data_publicacao);
     const dataVencimento = formatDateIso(item.data_vencimento);
     const prazoDias = item.prazo_dias ?? "--";
+    const tipoAndamento = item.tipo_andamento || item.dados_originais?.tipo_andamento || "--";
     const texto =
       item.texto_publicacao || item.texto || item.dados_originais?.texto || "--";
     const statusRaw = item.status || item.status_verificacao;
@@ -265,6 +266,9 @@ function renderConciliacaoCards(items) {
                 </span>
                 <span class="text-muted small">${statusMeta.description || ""}</span>
               </div>
+              <div class="mt-1">
+                <span class="fw-bold fs-5 text-dark">${tipoAndamento}</span>
+              </div>
               <div>
                 <p class="text-muted small mb-1">Processo</p>
                 <h6 class="mb-0">${processo}</h6>
@@ -276,12 +280,12 @@ function renderConciliacaoCards(items) {
           </div>
 
           <div>
-            <p class="text-muted small mb-1">Publicação</p>
-            <textarea
-              class="form-control"
-              readonly
-              style="min-height:250px;max-height:500px;white-space:pre-wrap;word-break:break-word;overflow:auto;resize:vertical;"
-            >${texto}</textarea>
+            <details class="border rounded p-2 bg-light">
+              <summary class="fw-semibold cursor-pointer" style="cursor: pointer;">
+                <i class="fas fa-align-left me-2"></i>Texto da Publicação
+              </summary>
+              <div class="mt-3 p-2 bg-white border rounded" style="max-height:500px; overflow-y:auto; white-space:pre-wrap; word-break:break-word;">${texto}</div>
+            </details>
           </div>
 
           <div class="d-flex flex-wrap gap-3 small text-muted">
@@ -388,7 +392,14 @@ function renderModal(status) {
             </div>
             <span class="badge bg-${meta.variant}">${formatSimilarity(item.similarity)}</span>
           </div>
-          <div class="texto-publicacao mt-2">${item.texto || "--"}</div>
+          <div class="mt-2">
+            <details class="border rounded p-2 bg-light">
+              <summary class="fw-semibold cursor-pointer" style="cursor: pointer; font-size: 0.85rem;">
+                <i class="fas fa-align-left me-2"></i>Texto da Publicação
+              </summary>
+              <div class="mt-2 p-2 bg-white border rounded" style="max-height:300px; overflow-y:auto; white-space:pre-wrap; word-break:break-word; font-size: 0.9rem;">${item.texto || "--"}</div>
+            </details>
+          </div>
         </div>
       `
       )

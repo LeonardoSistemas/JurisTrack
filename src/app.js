@@ -29,6 +29,7 @@ import internalRoute from "./routes/internalRoute.js";
 import dashboardRoute from "./routes/dashboardRoute.js";
 import publicacoesRoutes from "./routes/publicacoesRoutes.js";
 import conciliacaoRoute from "./routes/conciliacaoRoute.js";
+import feriadoRoute from "./routes/feriadoRoute.js"; 
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -73,6 +74,7 @@ app.use("/api/pessoas", pessoasRoute);
 app.use("/api/users", userRoute);
 app.use('/api/publicacoes', publicacoesRoutes);
 app.use('/api/similaridade', conciliacaoRoute);
+app.use("/api/feriados", feriadoRoute);
 
 /* Rota padrão */
 
@@ -88,10 +90,6 @@ app.get("/dashboard", (req, res) => {
   res.sendFile(path.join(__dirname, "../public", "html", "dashboard.html"));
 });
 
-app.get("/similaridade", (req, res) => {
-  res.sendFile(path.join(__dirname, "../public", "html", "similaridade.html"));
-});
-
 app.get("/processos", (req, res) => {
   res.sendFile(
     path.join(__dirname, "../public", "html", "processos.html")
@@ -102,6 +100,10 @@ app.get("/usuarios", (req, res) => {
   res.sendFile(
     path.join(__dirname, "../public", "html", "usuarios.html")
   );
+});
+
+app.get("/importar-feriados", (req, res) => {
+  res.sendFile(path.join(__dirname, "../public", "html", "importarFeriados.html"));
 });
 
 app.get("/gerenciarPeticao", (req, res) => {
