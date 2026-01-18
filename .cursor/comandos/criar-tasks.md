@@ -5,8 +5,8 @@
 
     A funcionalidade em que você trabalhará é identificada por este slug:
     
-    - PRD requerido: `tasks/prd-similaridade-conciliacao/prd.md`
-    - Tech Spec requerido: `tasks/prd-similaridade-conciliacao/techspec.md`
+    - PRD requerido: `tasks/prd-evento-providencia/prd.md`
+    - Tech Spec requerido: `tasks/prd-evento-providencia/techspec.md`
 
     ## Etapas do Processo
 
@@ -36,11 +36,11 @@
     ## Especificações de Saída
 
     ### Localização dos Arquivos
-    - Pasta da funcionalidade: `./tasks/prd-similaridade-conciliacao/`
+    - Pasta da funcionalidade: `./tasks/prd-evento-providencia/`
     - Template para a lista de tarefas: `./templates/tasks-template.md`
-    - Lista de tarefas: `./tasks/prd-similaridade-conciliacao/tasks.md`
+    - Lista de tarefas: `./tasks/prd-evento-providencia/tasks.md`
     - Template para cada tarefa individual: `./templates/task-template.md`
-    - Tarefas individuais: `./tasks/prd-similaridade-conciliacao/[num]_task.md`
+    - Tarefas individuais: `./tasks/prd-evento-providencia/[num]_task.md`
 
 
     ### Formato do Resumo de Tarefas (tasks.md)
