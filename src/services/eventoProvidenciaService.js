@@ -1,9 +1,54 @@
+import pool from "../config/postgresClient.js";
 import { withTenantFilter } from "../repositories/tenantScope.js";
 import { normalizarTexto } from "../utils/normalizarTexto.js";
 import { logWarn, logError } from "../utils/logger.js";
 import { buildPrazoSuggestion } from "./prazoService.js";
 
 const EVENTO_NAO_CLASSIFICADO = "EVENTO_NAO_CLASSIFICADO";
+
+async function withTransaction(fn) {
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    const result = await fn(client);
+    await client.query("COMMIT");
+    return result;
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+async function fetchItemForUpdate(client, itemId, tenantId) {
+  const { rows } = await client.query(
+    `
+      select *
+      from similaridade_itens
+      where id = $1
+        and tenant_id = $2
+      for update
+    `,
+    [itemId, tenantId]
+  );
+
+  return rows?.[0];
+}
+
+function ensureItemIsPendente(item) {
+  if (!item) {
+    const error = new Error("Item não encontrado para o tenant.");
+    error.statusCode = 404;
+    throw error;
+  }
+
+  if (item.status_decisao && item.status_decisao !== "pendente") {
+    const error = new Error("Item já analisado.");
+    error.statusCode = 409;
+    throw error;
+  }
+}
 
 export function normalizeAndamentoText(text) {
   if (!text || typeof text !== "string") return null;
@@ -220,7 +265,9 @@ export async function findEventoByTipoAndamento({ tipoAndamento, tenantId }) {
 
 export async function getSugestaoEventoProvidencia({ itemId, tenantId }) {
   if (!itemId || !tenantId) {
-    throw new Error("itemId e tenantId são obrigatórios para sugerir evento.");
+    const error = new Error("itemId e tenantId são obrigatórios para sugerir evento.");
+    error.statusCode = 400;
+    throw error;
   }
 
   const { data: item, error } = await withTenantFilter("similaridade_itens", tenantId)
@@ -233,7 +280,9 @@ export async function getSugestaoEventoProvidencia({ itemId, tenantId }) {
   }
 
   if (!item) {
-    throw new Error("Item de similaridade não encontrado para o tenant.");
+    const error = new Error("Item de similaridade não encontrado para o tenant.");
+    error.statusCode = 404;
+    throw error;
   }
 
   const evento = await findEventoByTipoAndamento({
@@ -260,4 +309,74 @@ export async function getSugestaoEventoProvidencia({ itemId, tenantId }) {
     providencia_padrao: padrao,
     alternativas,
   };
+}
+
+export async function confirmarAnaliseEventoProvidencia({
+  itemId,
+  eventoId,
+  providenciaId,
+  prazoFinal,
+  modeloId,
+  observacao,
+  tenantId,
+  userId,
+}) {
+  if (!itemId || !tenantId || !userId) {
+    const error = new Error("itemId, tenantId e userId são obrigatórios.");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  if (!eventoId || !providenciaId) {
+    const error = new Error("eventoId e providenciaId são obrigatórios.");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const sugestao = await getSugestaoEventoProvidencia({ itemId, tenantId });
+  const decisaoFinal = {
+    idItem: itemId,
+    evento_id: eventoId,
+    providencia_id: providenciaId,
+    prazo_final: prazoFinal ?? null,
+    modelo_id: modeloId ?? null,
+    observacao: observacao ?? null,
+  };
+
+  return withTransaction(async (client) => {
+    const item = await fetchItemForUpdate(client, itemId, tenantId);
+    ensureItemIsPendente(item);
+
+    await client.query(
+      `
+        insert into auditoria_sugestao
+          (publicacao_id, evento_sugerido_id, providencia_sugerida_id, prazo_sugerido, decisao_final_json, usuario_id, tenant_id, created_at)
+        values ($1, $2, $3, $4, $5, $6, $7, now())
+      `,
+      [
+        itemId,
+        sugestao?.evento?.id ?? null,
+        sugestao?.providencia_padrao?.id ?? null,
+        sugestao?.providencia_padrao?.prazo_sugerido
+          ? JSON.stringify(sugestao.providencia_padrao.prazo_sugerido)
+          : null,
+        JSON.stringify(decisaoFinal),
+        userId,
+        tenantId,
+      ]
+    );
+
+    await client.query(
+      `
+        update similaridade_itens
+        set status_decisao = 'analisado',
+            updated_at = now()
+        where id = $1
+          and tenant_id = $2
+      `,
+      [itemId, tenantId]
+    );
+
+    return { message: "Decisão registrada com sucesso." };
+  });
 }
