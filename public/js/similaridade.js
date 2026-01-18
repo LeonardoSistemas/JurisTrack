@@ -6,6 +6,7 @@ import {
   formatSimilarity,
   sanitizePayload,
 } from "./similaridade-core.js";
+import { abrirModalAnalise, setAnaliseItens } from "./analisePublicacao.js";
 
 const AUTH_TOKEN_KEY = "juristrack_token";
 const UPLOAD_ID_KEY = "similaridade_upload_id";
@@ -295,6 +296,9 @@ function renderConciliacaoCards(items) {
           </div>
 
           <div class="d-flex gap-2">
+            <button class="btn btn-primary btn-sm btn-analise" data-id="${item.id}">
+              <i class="fas fa-magnifying-glass me-1"></i> Analisar
+            </button>
             <button class="btn btn-success btn-sm" data-action="cadastrar" data-id="${item.id}">
               <i class="fas fa-check me-1"></i> Cadastrar
             </button>
@@ -315,6 +319,14 @@ function renderConciliacaoCards(items) {
       const action = e.currentTarget.dataset.action;
       const itemId = e.currentTarget.dataset.id;
       handleConciliacaoAction(action, itemId, e.currentTarget);
+    });
+  });
+
+  container.querySelectorAll(".btn-analise").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const itemId = btn.dataset.id;
+      const item = state.pendentes.find((entry) => entry.id === itemId);
+      if (item) abrirModalAnalise(item);
     });
   });
 }
@@ -502,6 +514,7 @@ async function carregarPendentes(uploadId) {
     }
 
     state.pendentes = Array.isArray(body) ? body : [];
+    setAnaliseItens(state.pendentes);
     if (state.pendentes.length === 0) {
       setFeedback("Nenhum item pendente para este upload.", "info");
     } else {
@@ -556,6 +569,7 @@ async function handleConciliacaoAction(action, itemId, button) {
 
     actionSucceeded = true;
     state.pendentes = state.pendentes.filter((item) => item.id !== itemId);
+    setAnaliseItens(state.pendentes);
     animateCardRemoval(itemId);
 
     const successMsg =
@@ -691,6 +705,14 @@ function bootstrapPage() {
     enviarSimilaridade(true);
   }
 }
+
+document.addEventListener("analise:item-processed", (event) => {
+  const itemId = event?.detail?.itemId;
+  if (!itemId) return;
+  state.pendentes = state.pendentes.filter((item) => item.id !== itemId);
+  setAnaliseItens(state.pendentes);
+  renderConciliacaoCards(state.pendentes);
+});
 
 document.addEventListener("DOMContentLoaded", bootstrapPage);
 
