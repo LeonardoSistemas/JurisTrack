@@ -6,6 +6,53 @@ import { buildPrazoSuggestion } from "./prazoService.js";
 
 const EVENTO_NAO_CLASSIFICADO = "EVENTO_NAO_CLASSIFICADO";
 
+function normalizePrazo(prazo) {
+  if (!prazo) return null;
+  if (typeof prazo === "string") {
+    return { data_vencimento: prazo };
+  }
+  if (typeof prazo !== "object") return null;
+  return {
+    dias: prazo.dias ?? null,
+    tipo: prazo.tipo ?? null,
+    data_vencimento: prazo.data_vencimento ?? null,
+  };
+}
+
+function buildAuditoriaPayload({ sugestao, decisaoFinal }) {
+  const sugestaoPrazo = normalizePrazo(sugestao?.providencia_padrao?.prazo_sugerido);
+  const decisaoPrazo = normalizePrazo(decisaoFinal?.prazo_final);
+
+  const sugestaoOriginal = {
+    evento_id: sugestao?.evento?.id ?? null,
+    providencia_id: sugestao?.providencia_padrao?.id ?? null,
+    prazo_sugerido: sugestaoPrazo,
+    modelo_id: sugestao?.providencia_padrao?.modelo_sugerido?.id ?? null,
+  };
+
+  const decisaoSnapshot = {
+    evento_id: decisaoFinal?.evento_id ?? null,
+    providencia_id: decisaoFinal?.providencia_id ?? null,
+    prazo_final: decisaoPrazo,
+    modelo_id: decisaoFinal?.modelo_id ?? null,
+    observacao: decisaoFinal?.observacao ?? null,
+  };
+
+  const diff = {
+    evento_alterado: sugestaoOriginal.evento_id !== decisaoSnapshot.evento_id,
+    providencia_alterada:
+      sugestaoOriginal.providencia_id !== decisaoSnapshot.providencia_id,
+    prazo_alterado: JSON.stringify(sugestaoPrazo) !== JSON.stringify(decisaoPrazo),
+    modelo_alterado: sugestaoOriginal.modelo_id !== decisaoSnapshot.modelo_id,
+  };
+
+  return {
+    sugestao_original: sugestaoOriginal,
+    decisao_final: decisaoSnapshot,
+    diff,
+  };
+}
+
 async function withTransaction(fn) {
   const client = await pool.connect();
   try {
@@ -347,6 +394,11 @@ export async function confirmarAnaliseEventoProvidencia({
     const item = await fetchItemForUpdate(client, itemId, tenantId);
     ensureItemIsPendente(item);
 
+    const auditoriaPayload = buildAuditoriaPayload({ sugestao, decisaoFinal });
+    const prazoSugestaoJson = sugestao?.providencia_padrao?.prazo_sugerido
+      ? JSON.stringify(sugestao.providencia_padrao.prazo_sugerido)
+      : null;
+
     await client.query(
       `
         insert into auditoria_sugestao
@@ -357,10 +409,8 @@ export async function confirmarAnaliseEventoProvidencia({
         itemId,
         sugestao?.evento?.id ?? null,
         sugestao?.providencia_padrao?.id ?? null,
-        sugestao?.providencia_padrao?.prazo_sugerido
-          ? JSON.stringify(sugestao.providencia_padrao.prazo_sugerido)
-          : null,
-        JSON.stringify(decisaoFinal),
+        prazoSugestaoJson,
+        JSON.stringify(auditoriaPayload),
         userId,
         tenantId,
       ]
