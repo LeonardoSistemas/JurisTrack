@@ -66,14 +66,13 @@ export const obterProcessoCompleto = async (id, tenantId) => {
         id,
         texto_integral,
         data_publicacao,
-        Prazo ( *, responsavel:pessoas ( nome ) ),
+        Prazo ( * ),
         Andamento ( * ),
         Historico_Peticoes ( * )
       ),
       
       Andamento (
-        *,
-        responsavel:pessoas!Andamento_responsavelId_fkey ( nome )
+        *
       )
     `
     )
@@ -82,6 +81,58 @@ export const obterProcessoCompleto = async (id, tenantId) => {
     .maybeSingle();
 
   if (error) throw error;
+  if (!data) return data;
+
+  const normalizeArray = (value) => {
+    if (!value) return [];
+    return Array.isArray(value) ? value : [value];
+  };
+
+  const responsavelIds = new Set();
+
+  normalizeArray(data.Andamento).forEach((andamento) => {
+    const responsavelId =
+      andamento?.responsavelId ?? andamento?.responsavelid ?? null;
+    if (responsavelId) responsavelIds.add(responsavelId);
+  });
+
+  normalizeArray(data.Publicacao).forEach((pub) => {
+    normalizeArray(pub?.Prazo).forEach((prazo) => {
+      const responsavelId =
+        prazo?.responsavelId ?? prazo?.responsavelid ?? null;
+      if (responsavelId) responsavelIds.add(responsavelId);
+    });
+  });
+
+  if (responsavelIds.size > 0) {
+    const { data: responsaveis, error: respError } = await supabase
+      .from("pessoas")
+      .select("idpessoa, nome")
+      .in("idpessoa", Array.from(responsavelIds));
+
+    if (respError) throw respError;
+
+    const responsavelMap = new Map(
+      (responsaveis || []).map((item) => [item.idpessoa, item])
+    );
+
+    normalizeArray(data.Andamento).forEach((andamento) => {
+      const responsavelId =
+        andamento?.responsavelId ?? andamento?.responsavelid ?? null;
+      const responsavel = responsavelMap.get(responsavelId);
+      if (responsavel) andamento.responsavel = responsavel;
+    });
+
+    normalizeArray(data.Publicacao).forEach((pub) => {
+      normalizeArray(pub?.Prazo).forEach((prazo) => {
+        const responsavelId =
+          prazo?.responsavelId ?? prazo?.responsavelid ?? null;
+        const responsavel = responsavelMap.get(responsavelId);
+        if (responsavel) prazo.responsavel = responsavel;
+      });
+    });
+  }
+
   return data;
 };
 
