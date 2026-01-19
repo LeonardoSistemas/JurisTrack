@@ -1,9 +1,32 @@
 import supabase from "../config/supabase.js";
 import { injectTenant, withTenantFilter } from "../repositories/tenantScope.js";
 
-function sanitizeUpdatePayload(dados) {
+function normalizeProcessoPayload(dados) {
   if (!dados || typeof dados !== "object") return {};
   const payload = { ...dados };
+
+  if ("data_distribuicao" in payload && !("datainicial" in payload)) {
+    payload.datainicial = payload.data_distribuicao;
+  }
+  delete payload.data_distribuicao;
+
+  if (!payload.pasta) {
+    if (payload.numprocesso) {
+      payload.pasta = payload.numprocesso;
+    } else {
+      payload.pasta = "sem_pasta";
+    }
+  }
+
+  Object.keys(payload).forEach((key) => {
+    if (payload[key] === "") payload[key] = null;
+  });
+
+  return payload;
+}
+
+function sanitizeUpdatePayload(dados) {
+  const payload = normalizeProcessoPayload(dados);
   delete payload.tenant_id;
   return payload;
 }
@@ -138,7 +161,7 @@ export const obterProcessoCompleto = async (id, tenantId) => {
 
 export const criarProcesso = async (dados, tenantId) => {
   const { partes, ...dadosProcesso } = dados;
-  const payload = injectTenant(dadosProcesso, tenantId);
+  const payload = injectTenant(normalizeProcessoPayload(dadosProcesso), tenantId);
   const { data, error } = await supabase
     .from("processos")
     .insert([payload])
