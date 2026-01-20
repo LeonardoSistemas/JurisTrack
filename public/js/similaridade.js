@@ -21,6 +21,38 @@ const state = {
   pendentes: [],
 };
 
+const DECISION_STATUS_META = {
+  pendente: {
+    label: "Pendente",
+    variant: "secondary",
+    description: "Aguardando cadastro",
+  },
+  cadastrado_sem_prazo: {
+    label: "Cadastrado • aguardando análise",
+    variant: "warning",
+    description: "Cadastro concluído, análise pendente",
+  },
+  analisado_com_prazo: {
+    label: "Analisado",
+    variant: "success",
+    description: "Prazo definido após análise",
+  },
+  cancelado: {
+    label: "Cancelado",
+    variant: "secondary",
+    description: "Item descartado",
+  },
+};
+
+function resolveDecisionStatus(item) {
+  const raw =
+    item?.status_decisao ??
+    item?.statusDecisao ??
+    "pendente";
+  const normalized = typeof raw === "string" ? raw.toLowerCase() : raw;
+  return DECISION_STATUS_META[normalized] ? normalized : "pendente";
+}
+
 function ensureToastContainer() {
   let container = document.getElementById(TOAST_CONTAINER_ID);
   if (!container) {
@@ -163,10 +195,21 @@ function renderConciliacaoEmptyState(message) {
 function toggleCardProcessing(cardEl, action, isProcessing) {
   if (!cardEl) return;
   const statusEl = cardEl.querySelector(".conciliacao-status");
-  const buttons = cardEl.querySelectorAll("button[data-action]");
+  const buttons = cardEl.querySelectorAll(
+    "button[data-action], button.btn-analise"
+  );
 
   buttons.forEach((btn) => {
-    btn.disabled = isProcessing;
+    if (isProcessing) {
+      btn.disabled = true;
+      return;
+    }
+    const disabledFlag = btn.dataset.disabled;
+    if (disabledFlag === "true") {
+      btn.disabled = true;
+    } else if (disabledFlag === "false") {
+      btn.disabled = false;
+    }
   });
 
   if (statusEl) {
@@ -242,6 +285,11 @@ function renderConciliacaoCards(items) {
     const statusRaw = item.status || item.status_verificacao;
     const status = STATUS_META[statusRaw] ? statusRaw : "NOVO";
     const statusMeta = STATUS_META[status];
+    const decisionStatus = resolveDecisionStatus(item);
+    const decisionMeta = DECISION_STATUS_META[decisionStatus];
+    const canCadastrar = decisionStatus === "pendente";
+    const canCancelar = decisionStatus === "pendente";
+    const canAnalisar = decisionStatus === "cadastrado_sem_prazo";
     const scoreBadgeClass = resolveScoreBadge(item.similaridade_score);
     const borderColor =
       statusMeta.variant === "primary"
@@ -254,7 +302,7 @@ function renderConciliacaoCards(items) {
 
     col.innerHTML = `
       <div
-        class="card h-100 conciliacao-card status-${statusMeta.variant}"
+        class="card h-100 conciliacao-card status-${statusMeta.variant} decision-${decisionStatus} ${decisionStatus === "cadastrado_sem_prazo" ? "decision-awaiting" : ""}"
         data-item-id="${item.id}"
         style="border-left:4px solid ${borderColor};"
       >
@@ -264,6 +312,9 @@ function renderConciliacaoCards(items) {
               <div class="d-flex align-items-center gap-2 flex-wrap">
                 <span class="badge bg-${statusMeta.variant}-subtle text-${statusMeta.variant}">
                   ${statusMeta.label}
+                </span>
+                <span class="badge bg-${decisionMeta.variant}-subtle text-${decisionMeta.variant}">
+                  ${decisionMeta.label}
                 </span>
                 <span class="text-muted small">${statusMeta.description || ""}</span>
               </div>
@@ -296,13 +347,13 @@ function renderConciliacaoCards(items) {
           </div>
 
           <div class="d-flex gap-2">
-            <button class="btn btn-primary btn-sm btn-analise" data-id="${item.id}">
+            <button class="btn btn-primary btn-sm btn-analise" data-id="${item.id}" data-disabled="${canAnalisar ? "false" : "true"}" ${canAnalisar ? "" : "disabled"}>
               <i class="fas fa-magnifying-glass me-1"></i> Analisar
             </button>
-            <button class="btn btn-success btn-sm" data-action="cadastrar" data-id="${item.id}">
+            <button class="btn btn-success btn-sm" data-action="cadastrar" data-id="${item.id}" data-disabled="${canCadastrar ? "false" : "true"}" ${canCadastrar ? "" : "disabled"}>
               <i class="fas fa-check me-1"></i> Cadastrar
             </button>
-            <button class="btn btn-outline-danger btn-sm" data-action="cancelar" data-id="${item.id}">
+            <button class="btn btn-outline-danger btn-sm" data-action="cancelar" data-id="${item.id}" data-disabled="${canCancelar ? "false" : "true"}" ${canCancelar ? "" : "disabled"}>
               <i class="fas fa-ban me-1"></i> Cancelar
             </button>
           </div>
@@ -568,9 +619,21 @@ async function handleConciliacaoAction(action, itemId, button) {
     }
 
     actionSucceeded = true;
-    state.pendentes = state.pendentes.filter((item) => item.id !== itemId);
-    setAnaliseItens(state.pendentes);
-    animateCardRemoval(itemId);
+    if (action === "cancelar") {
+      state.pendentes = state.pendentes.filter((item) => item.id !== itemId);
+      setAnaliseItens(state.pendentes);
+      animateCardRemoval(itemId);
+    } else if (action === "cadastrar") {
+      const item = state.pendentes.find((entry) => entry.id === itemId);
+      if (item) {
+        item.status_decisao = "cadastrado_sem_prazo";
+        if (body?.publicacaoId) {
+          item.publicacao_id = body.publicacaoId;
+        }
+      }
+      setAnaliseItens(state.pendentes);
+      renderConciliacaoCards(state.pendentes);
+    }
 
     const successMsg =
       body?.message ||

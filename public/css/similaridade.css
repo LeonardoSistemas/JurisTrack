@@ -76,6 +76,10 @@ body {
   transform: translateY(-4px);
 }
 
+.conciliacao-card.decision-awaiting {
+  background: #fff8e1;
+}
+
 .conciliacao-status {
   min-height: 1rem;
 }
