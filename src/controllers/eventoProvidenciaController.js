@@ -2,11 +2,20 @@ import {
   confirmarAnaliseEventoProvidencia,
   getSugestaoEventoProvidencia,
 } from "../services/eventoProvidenciaService.js";
+import { confirmarAnaliseSimilaridade } from "../services/conciliacaoService.js";
 import { ensureTenantAuthorization } from "../utils/authz.js";
 import { logError, logWarn } from "../utils/logger.js";
 
 function isNonEmptyString(value) {
   return typeof value === "string" && value.trim().length > 0;
+}
+
+function resolveConfirmMode(payload) {
+  if (!payload || typeof payload !== "object") return "evento";
+  const hasSimilaridadeFields =
+    isNonEmptyString(payload.item_similaridade_id) ||
+    isNonEmptyString(payload.publicacao_id);
+  return hasSimilaridadeFields ? "similaridade" : "evento";
 }
 
 function validateConfirmPayload(payload) {
@@ -16,7 +25,40 @@ function validateConfirmPayload(payload) {
     return ["Payload inválido."];
   }
 
-  const { idItem, evento_id, providencia_id, prazo_final, modelo_id, observacao } = payload;
+  const mode = resolveConfirmMode(payload);
+
+  if (mode === "similaridade") {
+    const { item_similaridade_id, publicacao_id, prazo_final, decisao_final_json } =
+      payload;
+
+    if (!isNonEmptyString(item_similaridade_id)) {
+      errors.push("item_similaridade_id é obrigatório.");
+    }
+
+    if (!isNonEmptyString(publicacao_id)) {
+      errors.push("publicacao_id é obrigatório.");
+    }
+
+    if (prazo_final == null) {
+      errors.push("prazo_final é obrigatório.");
+    } else if (typeof prazo_final !== "string" && typeof prazo_final !== "object") {
+      errors.push("prazo_final deve ser string ou objeto.");
+    }
+
+    if (decisao_final_json == null) {
+      errors.push("decisao_final_json é obrigatório.");
+    } else if (
+      typeof decisao_final_json !== "string" &&
+      typeof decisao_final_json !== "object"
+    ) {
+      errors.push("decisao_final_json deve ser string ou objeto.");
+    }
+
+    return errors;
+  }
+
+  const { idItem, evento_id, providencia_id, prazo_final, modelo_id, observacao } =
+    payload;
 
   if (!isNonEmptyString(idItem)) {
     errors.push("idItem é obrigatório.");
@@ -101,19 +143,33 @@ export const confirmar = async (req, res) => {
     prazo_final,
     modelo_id,
     observacao,
+    item_similaridade_id,
+    publicacao_id,
+    decisao_final_json,
   } = req.body;
 
   try {
-    const result = await confirmarAnaliseEventoProvidencia({
-      itemId: idItem,
-      eventoId: evento_id,
-      providenciaId: providencia_id,
-      prazoFinal: prazo_final,
-      modeloId: modelo_id,
-      observacao,
-      tenantId: req.tenantId,
-      userId: req.user?.id,
-    });
+    const mode = resolveConfirmMode(req.body);
+    const result =
+      mode === "similaridade"
+        ? await confirmarAnaliseSimilaridade({
+            itemSimilaridadeId: item_similaridade_id,
+            publicacaoId: publicacao_id,
+            prazoFinal: prazo_final,
+            decisaoFinalJson: decisao_final_json,
+            tenantId: req.tenantId,
+            userId: req.user?.id,
+          })
+        : await confirmarAnaliseEventoProvidencia({
+            itemId: idItem,
+            eventoId: evento_id,
+            providenciaId: providencia_id,
+            prazoFinal: prazo_final,
+            modeloId: modelo_id,
+            observacao,
+            tenantId: req.tenantId,
+            userId: req.user?.id,
+          });
 
     return res.status(200).json(result);
   } catch (error) {
@@ -122,7 +178,7 @@ export const confirmar = async (req, res) => {
       error,
       tenantId: req.tenantId,
       userId: req.user?.id,
-      itemId: idItem,
+      itemId: idItem || item_similaridade_id,
     });
     return res.status(status).json({ error: error.message });
   }

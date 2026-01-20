@@ -102,6 +102,96 @@ function ensureItemIsPendente(item) {
   }
 }
 
+function ensureItemIsCadastradoSemPrazo(item) {
+  if (!item) {
+    const error = new Error("Item não encontrado para o tenant.");
+    error.statusCode = 404;
+    throw error;
+  }
+
+  if (item.status_decisao !== "cadastrado_sem_prazo") {
+    const error = new Error("Item não está pronto para análise.");
+    error.statusCode = 409;
+    throw error;
+  }
+}
+
+function normalizePrazoDays(value) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+}
+
+function normalizePrazoFinal(prazoFinal) {
+  if (!prazoFinal) return null;
+  if (typeof prazoFinal === "string") {
+    return { data_vencimento: prazoFinal };
+  }
+  if (typeof prazoFinal !== "object") return null;
+  return {
+    data_vencimento: prazoFinal.data_vencimento ?? prazoFinal.data_limite ?? null,
+    dias: normalizePrazoDays(prazoFinal.dias),
+    descricao: prazoFinal.descricao ?? null,
+  };
+}
+
+async function ensurePublicacaoLink({
+  client,
+  itemId,
+  publicacaoId,
+  tenantId,
+}) {
+  const { rows } = await client.query(
+    `
+      select publicacao_id
+      from similaridade_item_publicacao
+      where item_similaridade_id = $1
+        and tenant_id = $2
+      limit 1
+    `,
+    [itemId, tenantId]
+  );
+
+  if (!rows?.length) {
+    const error = new Error("Vínculo com publicação não encontrado.");
+    error.statusCode = 404;
+    throw error;
+  }
+
+  const linkedPublicacaoId = rows[0]?.publicacao_id;
+  if (linkedPublicacaoId !== publicacaoId) {
+    const error = new Error("Publicação não corresponde ao item informado.");
+    error.statusCode = 409;
+    throw error;
+  }
+
+  return linkedPublicacaoId;
+}
+
+async function ensurePublicacaoExists(client, publicacaoId, tenantId) {
+  const { rowCount } = await client.query(
+    `
+      select id
+      from "Publicacao"
+      where id = $1
+        and tenant_id = $2
+      limit 1
+    `,
+    [publicacaoId, tenantId]
+  );
+
+  if (!rowCount) {
+    const error = new Error("Publicação não encontrada para o tenant.");
+    error.statusCode = 404;
+    throw error;
+  }
+}
+
+function normalizeAuditoriaPayload(decisaoFinalJson) {
+  if (decisaoFinalJson == null) return null;
+  if (typeof decisaoFinalJson === "string") return decisaoFinalJson;
+  return JSON.stringify(decisaoFinalJson);
+}
+
 async function ensureProcesso(client, { numero_processo, tenantId }) {
   const existing = await client.query(
     `
@@ -293,4 +383,108 @@ export async function listarPendentesPorUpload({ uploadId, tenantId }) {
   );
 
   return rows;
+}
+
+export async function confirmarAnaliseSimilaridade({
+  itemSimilaridadeId,
+  publicacaoId,
+  prazoFinal,
+  decisaoFinalJson,
+  tenantId,
+  userId,
+}) {
+  if (!itemSimilaridadeId || !publicacaoId || !tenantId || !userId) {
+    const error = new Error(
+      "itemSimilaridadeId, publicacaoId, tenantId e userId são obrigatórios."
+    );
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const normalizedPrazo = normalizePrazoFinal(prazoFinal);
+  if (!normalizedPrazo?.data_vencimento) {
+    const error = new Error("prazo_final com data_vencimento é obrigatório.");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const auditoriaPayload = normalizeAuditoriaPayload(decisaoFinalJson);
+  if (!auditoriaPayload) {
+    const error = new Error("decisao_final_json é obrigatório.");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  return withTransaction(async (client) => {
+    const item = await fetchItemForUpdate(client, itemSimilaridadeId, tenantId);
+    ensureItemIsCadastradoSemPrazo(item);
+
+    await ensurePublicacaoLink({
+      client,
+      itemId: itemSimilaridadeId,
+      publicacaoId,
+      tenantId,
+    });
+    await ensurePublicacaoExists(client, publicacaoId, tenantId);
+
+    const auditoriaResult = await client.query(
+      `
+        insert into auditoria_sugestao
+          (publicacao_id, decisao_final_json, usuario_id, tenant_id, created_at)
+        values ($1, $2, $3, $4, now())
+        returning id
+      `,
+      [publicacaoId, auditoriaPayload, userId, tenantId]
+    );
+
+    const auditoriaSugestaoId = auditoriaResult.rows?.[0]?.id;
+    if (!auditoriaSugestaoId) {
+      const error = new Error("Falha ao criar auditoria da sugestão.");
+      error.statusCode = 500;
+      throw error;
+    }
+
+    const descricaoPrazo = normalizedPrazo.descricao || "Prazo definido na análise";
+
+    await client.query(
+      `
+        insert into "Prazo"
+          (descricao, data_inicio, data_limite, dias, publicacaoid, tenant_id, auditoria_sugestao_id)
+        values ($1, $2, $3, $4, $5, $6, $7)
+      `,
+      [
+        descricaoPrazo,
+        item?.data_publicacao ?? null,
+        normalizedPrazo.data_vencimento,
+        normalizedPrazo.dias,
+        publicacaoId,
+        tenantId,
+        auditoriaSugestaoId,
+      ]
+    );
+
+    await client.query(
+      `
+        update similaridade_itens
+        set status_decisao = 'analisado_com_prazo',
+            updated_at = now()
+        where id = $1
+          and tenant_id = $2
+      `,
+      [itemSimilaridadeId, tenantId]
+    );
+
+    logInfo("conciliacao.confirmar.sucesso", "Análise confirmada com prazo.", {
+      tenantId,
+      userId,
+      itemSimilaridadeId,
+      publicacaoId,
+      auditoriaSugestaoId,
+    });
+
+    return {
+      message: "Análise confirmada com criação de prazo.",
+      auditoriaSugestaoId,
+    };
+  });
 }
