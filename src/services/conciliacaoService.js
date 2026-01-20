@@ -1,5 +1,4 @@
 import pool from "../config/postgresClient.js";
-import { addBusinessDays } from "../utils/dateUtils.js";
 import { gerarEmbedding } from "./embeddingService.js";
 import { logError, logWarn, logInfo } from "../utils/logger.js";
 
@@ -131,30 +130,6 @@ async function ensureProcesso(client, { numero_processo, tenantId }) {
   return inserted.rows[0].idprocesso;
 }
 
-async function calcularDataLimite(item) {
-  if (item?.data_vencimento) return item.data_vencimento;
-  if (!item?.data_publicacao || !item?.prazo_dias) return null;
-
-  try {
-    const dataCalculada = await addBusinessDays(
-      item.data_publicacao,
-      item.prazo_dias
-    );
-    return dataCalculada?.format?.("YYYY-MM-DD") ?? null;
-  } catch (error) {
-    logWarn(
-      "conciliacao.calc_prazo_error",
-      "Falha ao calcular data_limite, seguindo sem prazo",
-      {
-        error,
-        data_publicacao: item?.data_publicacao,
-        prazo_dias: item?.prazo_dias,
-      }
-    );
-    return null;
-  }
-}
-
 export async function cadastrarItem({ itemId, tenantId, userId }) {
   if (!itemId || !tenantId) {
     throw new Error("itemId e tenantId são obrigatórios.");
@@ -169,8 +144,6 @@ export async function cadastrarItem({ itemId, tenantId, userId }) {
       error.statusCode = 400;
       throw error;
     }
-
-    const dataLimite = await calcularDataLimite(item);
 
     const processoId = await ensureProcesso(client, {
       numero_processo: item.numero_processo,
@@ -231,22 +204,17 @@ export async function cadastrarItem({ itemId, tenantId, userId }) {
 
     await client.query(
       `
-        insert into "Prazo" (descricao, data_limite, publicacaoid, "responsavelId", tenant_id)
-        values ($1, $2, $3, $4, $5)
+        insert into similaridade_item_publicacao
+          (item_similaridade_id, publicacao_id, tenant_id)
+        values ($1, $2, $3)
       `,
-      [
-        "Prazo automático (similaridade)",
-        dataLimite,
-        publicacaoId,
-        null,
-        tenantId,
-      ]
+      [itemId, publicacaoId, tenantId]
     );
 
     await client.query(
       `
         update similaridade_itens
-        set status_decisao = 'cadastrado',
+        set status_decisao = 'cadastrado_sem_prazo',
             updated_at = now()
         where id = $1
       `,
