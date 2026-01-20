@@ -53,6 +53,7 @@ export const getSugestao = async (req, res) => {
   if (!ensureTenantAuthorization(req, res)) return;
 
   const { idItem } = req.params || {};
+  const { evento_id: eventoId } = req.query || {};
   if (!idItem) {
     logWarn("evento.controller.sugestao_validation", "idItem é obrigatório.", {
       tenantId: req.tenantId,
@@ -65,6 +66,7 @@ export const getSugestao = async (req, res) => {
     const sugestao = await getSugestaoEventoProvidencia({
       itemId: idItem,
       tenantId: req.tenantId,
+      eventoId: eventoId || null,
     });
     return res.status(200).json(sugestao);
   } catch (error) {

@@ -12,11 +12,29 @@ const DEFAULT_TIMEZONE = "America/Sao_Paulo";
 
 function normalizePrazoTipo(tipoPrazo) {
   if (!tipoPrazo) return null;
-  const normalized = String(tipoPrazo).trim().toLowerCase();
-  if (Object.values(PRAZO_TIPO).includes(normalized)) {
-    return normalized;
+  const raw = String(tipoPrazo).trim().toLowerCase();
+  const withoutAccents = raw.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  const compact = withoutAccents.replace(/[^\w]+/g, "_").replace(/^_+|_+$/g, "");
+
+  if (Object.values(PRAZO_TIPO).includes(compact)) {
+    return compact;
   }
-  return null;
+
+  const aliases = {
+    util: PRAZO_TIPO.UTIL,
+    uteis: PRAZO_TIPO.UTIL,
+    dia_util: PRAZO_TIPO.UTIL,
+    dias_uteis: PRAZO_TIPO.UTIL,
+    corrido: PRAZO_TIPO.CORRIDO,
+    corridos: PRAZO_TIPO.CORRIDO,
+    dia_corrido: PRAZO_TIPO.CORRIDO,
+    dias_corridos: PRAZO_TIPO.CORRIDO,
+    data_fixa: PRAZO_TIPO.DATA_FIXA,
+    datafixa: PRAZO_TIPO.DATA_FIXA,
+    data_fixo: PRAZO_TIPO.DATA_FIXA,
+  };
+
+  return aliases[compact] || null;
 }
 
 function normalizeDias(prazoDias) {

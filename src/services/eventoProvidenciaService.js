@@ -161,6 +161,19 @@ async function fetchEventoById(eventoId, tenantId) {
   return data;
 }
 
+async function fetchEventosAtivos(tenantId) {
+  const { data, error } = await withTenantFilter("evento_processual", tenantId)
+    .select("id, nome")
+    .eq("ativo", true)
+    .order("nome", { ascending: true });
+
+  if (error) {
+    throw error;
+  }
+
+  return Array.isArray(data) ? data : [];
+}
+
 async function fetchAndamentoRules(tenantId, tipoMatch) {
   const { data, error } = await withTenantFilter("andamento_evento", tenantId)
     .select("id, andamento_descricao, evento_id, tipo_match")
@@ -174,8 +187,8 @@ async function fetchAndamentoRules(tenantId, tipoMatch) {
 }
 
 async function fetchModeloSugerido(providenciaId, tenantId) {
-  const { data, error } = await withTenantFilter("modelo_peticao", tenantId)
-    .select("id, nome")
+  const { data, error } = await withTenantFilter("Modelos_Peticao", tenantId)
+    .select("id, titulo")
     .eq("providencia_id", providenciaId)
     .eq("ativo", true)
     .order("created_at", { ascending: true })
@@ -185,7 +198,8 @@ async function fetchModeloSugerido(providenciaId, tenantId) {
     throw error;
   }
 
-  return Array.isArray(data) && data.length ? data[0] : null;
+  if (!Array.isArray(data) || !data.length) return null;
+  return { id: data[0].id, nome: data[0].titulo };
 }
 
 async function buildProvidenciaSugestao(rule, dataPublicacao, tenantId) {
@@ -310,7 +324,7 @@ export async function findEventoByTipoAndamento({ tipoAndamento, tenantId }) {
   }
 }
 
-export async function getSugestaoEventoProvidencia({ itemId, tenantId }) {
+export async function getSugestaoEventoProvidencia({ itemId, tenantId, eventoId }) {
   if (!itemId || !tenantId) {
     const error = new Error("itemId e tenantId são obrigatórios para sugerir evento.");
     error.statusCode = 400;
@@ -332,13 +346,26 @@ export async function getSugestaoEventoProvidencia({ itemId, tenantId }) {
     throw error;
   }
 
-  const evento = await findEventoByTipoAndamento({
-    tipoAndamento: item.tipo_andamento,
-    tenantId,
-  });
+  const eventos = await fetchEventosAtivos(tenantId);
+
+  let evento = null;
+  if (eventoId) {
+    evento = await fetchEventoById(eventoId, tenantId);
+    if (!evento) {
+      const error = new Error("Evento não encontrado.");
+      error.statusCode = 404;
+      throw error;
+    }
+  } else {
+    evento = await findEventoByTipoAndamento({
+      tipoAndamento: item.tipo_andamento,
+      tenantId,
+    });
+  }
 
   if (!evento?.id) {
     return {
+      eventos,
       evento,
       providencia_padrao: null,
       alternativas: [],
@@ -352,6 +379,7 @@ export async function getSugestaoEventoProvidencia({ itemId, tenantId }) {
   );
 
   return {
+    eventos,
     evento,
     providencia_padrao: padrao,
     alternativas,

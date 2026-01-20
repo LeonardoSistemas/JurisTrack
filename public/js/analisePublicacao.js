@@ -16,7 +16,6 @@ function getModalElements() {
     eventoId: document.getElementById("analiseModalEventoId"),
     processo: document.getElementById("analiseModalProcesso"),
     dataPublicacao: document.getElementById("analiseModalDataPublicacao"),
-    eventoNome: document.getElementById("analiseModalEventoNome"),
     providencia: document.getElementById("analiseModalProvidencia"),
     prazoData: document.getElementById("analiseModalPrazoData"),
     prazoInfo: document.getElementById("analiseModalPrazoInfo"),
@@ -98,6 +97,15 @@ function updatePrazoAviso(dateValue) {
   }
 }
 
+function buildEventoOptions(eventos = []) {
+  if (!eventos.length) {
+    return `<option value="">Sem evento</option>`;
+  }
+  return eventos
+    .map((evento) => `<option value="${evento.id}">${evento.nome}</option>`)
+    .join("");
+}
+
 function updateModeloOptions(modelo) {
   const { modelo: modeloSelect } = getModalElements();
   if (!modeloSelect) return;
@@ -174,12 +182,17 @@ function populateModalBase(item) {
     texto,
     tipoAndamento,
     itemId,
+    eventoId,
     processo,
     dataPublicacao,
   } = getModalElements();
   if (texto) texto.textContent = resolveTextoPublicacao(item);
   if (tipoAndamento) tipoAndamento.textContent = resolveTipoAndamento(item);
   if (itemId) itemId.value = item?.id || "";
+  if (eventoId) {
+    eventoId.innerHTML = `<option value="">Carregando...</option>`;
+    eventoId.value = "";
+  }
   if (processo) processo.value = item?.numero_processo || "Processo sem número";
   if (dataPublicacao) {
     dataPublicacao.value = item?.data_publicacao
@@ -191,15 +204,16 @@ function populateModalBase(item) {
 function populateSugestoes(sugestao) {
   const {
     eventoId,
-    eventoNome,
     providencia,
     observacao,
     observacaoJuridica,
   } = getModalElements();
   sugestoesByProvidencia = new Map();
 
-  if (eventoId) eventoId.value = sugestao?.evento?.id || "";
-  if (eventoNome) eventoNome.value = sugestao?.evento?.nome || "-";
+  if (eventoId) {
+    eventoId.innerHTML = buildEventoOptions(sugestao?.eventos || []);
+    eventoId.value = sugestao?.evento?.id || "";
+  }
   if (observacao) observacao.value = "";
   if (observacaoJuridica) observacaoJuridica.textContent = "-";
 
@@ -227,7 +241,9 @@ function populateSugestoes(sugestao) {
 }
 
 async function carregarSugestoes(itemId) {
-  const response = await authFetch(`/api/analise/sugestao/${itemId}`);
+  const eventoId = getModalElements().eventoId?.value || "";
+  const query = eventoId ? `?evento_id=${encodeURIComponent(eventoId)}` : "";
+  const response = await authFetch(`/api/analise/sugestao/${itemId}${query}`);
   const body = await response.json().catch(() => ({}));
   if (!response.ok) {
     throw new Error(body?.error || "Falha ao buscar sugestões.");
@@ -288,7 +304,7 @@ async function salvarAnalise({ itemId, saveNext }) {
 }
 
 function bindFieldHandlers() {
-  const { providencia, prazoData } = getModalElements();
+  const { providencia, prazoData, eventoId } = getModalElements();
   if (providencia) {
     providencia.addEventListener("change", (e) => {
       updateProvidenciaSelection(e.target.value);
@@ -297,6 +313,22 @@ function bindFieldHandlers() {
   if (prazoData) {
     prazoData.addEventListener("change", (e) => {
       updatePrazoAviso(e.target.value);
+    });
+  }
+  if (eventoId) {
+    eventoId.addEventListener("change", async (e) => {
+      if (!currentItemId || !e.target.value) return;
+      setFeedback("Atualizando sugestões...", "info");
+      setLoading(true);
+      try {
+        const sugestao = await carregarSugestoes(currentItemId);
+        populateSugestoes(sugestao);
+        setFeedback(null);
+      } catch (error) {
+        setFeedback(error.message, "danger");
+      } finally {
+        setLoading(false);
+      }
     });
   }
 }
