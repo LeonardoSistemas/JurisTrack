@@ -5,6 +5,7 @@ const AUTH_TOKEN_KEY = "juristrack_token";
 let analiseItens = [];
 let sugestoesByProvidencia = new Map();
 let currentItemId = null;
+let currentPublicacaoId = null;
 
 function getModalElements() {
   return {
@@ -177,6 +178,26 @@ function removeItemFromQueue(itemId) {
   analiseItens = analiseItens.filter((item) => item.id !== itemId);
 }
 
+async function fetchPublicacaoId(itemId) {
+  const response = await authFetch(`/api/similaridade/itens/${itemId}/publicacao`);
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(body?.error || "Falha ao buscar publicação vinculada.");
+  }
+  return body?.publicacaoId || body?.publicacao_id || null;
+}
+
+async function ensurePublicacaoId(item) {
+  if (item?.publicacao_id) {
+    return item.publicacao_id;
+  }
+  const publicacaoId = await fetchPublicacaoId(item?.id);
+  if (publicacaoId) {
+    item.publicacao_id = publicacaoId;
+  }
+  return publicacaoId;
+}
+
 function populateModalBase(item) {
   const {
     texto,
@@ -260,6 +281,10 @@ async function salvarAnalise({ itemId, saveNext }) {
     observacao,
   } = getModalElements();
 
+  if (!currentPublicacaoId) {
+    throw new Error("Publicação vinculada não encontrada para esta análise.");
+  }
+
   const prazoSugestao = providencia?.value
     ? sugestoesByProvidencia.get(providencia.value)?.prazo_sugerido
     : null;
@@ -272,8 +297,9 @@ async function salvarAnalise({ itemId, saveNext }) {
       }
     : null;
 
-  const payload = {
-    idItem: itemId,
+  const decisaoFinalJson = {
+    item_similaridade_id: itemId,
+    publicacao_id: currentPublicacaoId,
     evento_id: eventoId?.value || null,
     providencia_id: providencia?.value || null,
     prazo_final: prazoFinal,
@@ -281,8 +307,19 @@ async function salvarAnalise({ itemId, saveNext }) {
     observacao: observacao?.value?.trim() || null,
   };
 
-  if (!payload.evento_id || !payload.providencia_id) {
+  const payload = {
+    item_similaridade_id: itemId,
+    publicacao_id: currentPublicacaoId,
+    prazo_final: prazoFinal,
+    decisao_final_json: decisaoFinalJson,
+  };
+
+  if (!decisaoFinalJson.evento_id || !decisaoFinalJson.providencia_id) {
     throw new Error("Selecione um evento e uma providência antes de salvar.");
+  }
+
+  if (!prazoFinal?.data_vencimento) {
+    throw new Error("Informe a data final do prazo antes de salvar.");
   }
 
   const response = await authFetch("/api/analise/confirmar", {
@@ -393,11 +430,17 @@ export async function abrirModalAnalise(itemOrId) {
   }
 
   currentItemId = item.id;
+  currentPublicacaoId = null;
   populateModalBase(item);
   setFeedback("Carregando sugestões...", "info");
   setLoading(true);
 
   try {
+    const publicacaoId = await ensurePublicacaoId(item);
+    if (!publicacaoId) {
+      throw new Error("Publicação vinculada não encontrada para este item.");
+    }
+    currentPublicacaoId = publicacaoId;
     const sugestao = await carregarSugestoes(item.id);
     populateSugestoes(sugestao);
     setFeedback(null);

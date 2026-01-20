@@ -385,6 +385,31 @@ export async function listarPendentesPorUpload({ uploadId, tenantId }) {
   return rows;
 }
 
+export async function buscarPublicacaoVinculada({ itemId, tenantId }) {
+  if (!itemId || !tenantId) {
+    throw new Error("itemId e tenantId são obrigatórios.");
+  }
+
+  const { rows } = await pool.query(
+    `
+      select publicacao_id
+      from similaridade_item_publicacao
+      where item_similaridade_id = $1
+        and tenant_id = $2
+      limit 1
+    `,
+    [itemId, tenantId]
+  );
+
+  if (!rows?.length) {
+    const error = new Error("Vínculo com publicação não encontrado.");
+    error.statusCode = 404;
+    throw error;
+  }
+
+  return { publicacaoId: rows[0].publicacao_id };
+}
+
 export async function confirmarAnaliseSimilaridade({
   itemSimilaridadeId,
   publicacaoId,
