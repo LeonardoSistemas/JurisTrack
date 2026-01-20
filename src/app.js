@@ -31,6 +31,7 @@ import publicacoesRoutes from "./routes/publicacoesRoutes.js";
 import conciliacaoRoute from "./routes/conciliacaoRoute.js";
 import feriadoRoute from "./routes/feriadoRoute.js"; 
 
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
@@ -207,6 +208,12 @@ app.get("/situacoes", (req, res) =>{
 app.get("/tipoAcao", (req, res) =>{
   res.sendFile(
     (path.join(__dirname, "../public","html", "tipoAcao.html"))
+  );
+});
+
+app.get("/tiposAndamento", (req, res) =>{
+  res.sendFile(
+    (path.join(__dirname, "../public","html", "tipoAndamento.html"))
   );
 });
 

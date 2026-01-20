@@ -17,7 +17,8 @@ const configs = [
   ["situacoes", "situacoes", "idsituacao"],
   ["probabilidades", "probabilidades", "idprobabilidade"],
   ["moedas", "moedas", "idmoeda"],
-  ["pessoas", "pessoas", "idpessoa"]
+  ["pessoas", "pessoas", "idpessoa"],
+  ["TipoAndamento", "TipoAndamento", "id"]
 ];
 
 configs.forEach(([rota, tabela, id]) => {

@@ -51,6 +51,9 @@ class AppSidebar extends HTMLElement {
                         <a class="nav-link" href="/comarcas">
                             <i class="fas fa-map-signs"></i> Comarcas
                         </a>
+                         <a class="nav-link" href="/tiposAndamento">
+                            <i class="fa-solid fa-sign-hanging"></i>Tipo de Andamento
+                        </a>
                         <a class="nav-link" href="/tribunais">
                             <i class="fas fa-landmark"></i> Tribunais
                         </a>
