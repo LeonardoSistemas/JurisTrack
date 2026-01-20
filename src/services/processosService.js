@@ -46,8 +46,7 @@ export const listarProcessos = async (filtros, tenantId) => {
 
 export const obterProcessoCompleto = async (id, tenantId) => {
   const { data, error } = await withTenantFilter("processos", tenantId)
-    .select(
-      `
+    .select(`
       *,
       cidades ( idcidade, descricao, idestado ),
       comarcas ( idcomarca, descricao ),
@@ -62,77 +61,30 @@ export const obterProcessoCompleto = async (id, tenantId) => {
       partes:processo_partes ( id, tipo_parte, pessoas ( idpessoa, nome, cpf_cnpj ) ),
       advogado:pessoas!fk_processos_advogado ( idpessoa, nome ),
 
-      Publicacao (
+      Publicacao!"publicacao_processoid_fkey" (
         id,
         texto_integral,
         data_publicacao,
-        Prazo ( * ),
-        Andamento ( * ),
-        Historico_Peticoes ( * )
+        Prazo ( 
+          *, 
+          responsavel:users!Prazo_responsavelId_fkey ( nome ) 
+        ),
+        Andamento!andamento_publicacaoid_fkey ( * ),
+        Historico_Peticoes!historico_peticoes_publicacao_id_fkey ( * )
       ),
       
-      Andamento (
-        *
+      Andamento!"Andamento_processoId_fkey" (
+        *,
+        responsavel:pessoas!Andamento_responsavelId_fkey ( nome )
       )
-    `
-    )
+    `)
     .eq("idprocesso", id)
-    .eq("Publicacao.tenant_id", tenantId)
     .maybeSingle();
 
-  if (error) throw error;
-  if (!data) return data;
-
-  const normalizeArray = (value) => {
-    if (!value) return [];
-    return Array.isArray(value) ? value : [value];
-  };
-
-  const responsavelIds = new Set();
-
-  normalizeArray(data.Andamento).forEach((andamento) => {
-    const responsavelId =
-      andamento?.responsavelId ?? andamento?.responsavelid ?? null;
-    if (responsavelId) responsavelIds.add(responsavelId);
-  });
-
-  normalizeArray(data.Publicacao).forEach((pub) => {
-    normalizeArray(pub?.Prazo).forEach((prazo) => {
-      const responsavelId =
-        prazo?.responsavelId ?? prazo?.responsavelid ?? null;
-      if (responsavelId) responsavelIds.add(responsavelId);
-    });
-  });
-
-  if (responsavelIds.size > 0) {
-    const { data: responsaveis, error: respError } = await supabase
-      .from("pessoas")
-      .select("idpessoa, nome")
-      .in("idpessoa", Array.from(responsavelIds));
-
-    if (respError) throw respError;
-
-    const responsavelMap = new Map(
-      (responsaveis || []).map((item) => [item.idpessoa, item])
-    );
-
-    normalizeArray(data.Andamento).forEach((andamento) => {
-      const responsavelId =
-        andamento?.responsavelId ?? andamento?.responsavelid ?? null;
-      const responsavel = responsavelMap.get(responsavelId);
-      if (responsavel) andamento.responsavel = responsavel;
-    });
-
-    normalizeArray(data.Publicacao).forEach((pub) => {
-      normalizeArray(pub?.Prazo).forEach((prazo) => {
-        const responsavelId =
-          prazo?.responsavelId ?? prazo?.responsavelid ?? null;
-        const responsavel = responsavelMap.get(responsavelId);
-        if (responsavel) prazo.responsavel = responsavel;
-      });
-    });
+  if (error) {
+    console.error("ERRO SUPABASE:", error); // Verifique o terminal do VS Code/Node
+    throw error;
   }
-
   return data;
 };
 

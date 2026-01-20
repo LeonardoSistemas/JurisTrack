@@ -47,8 +47,9 @@ export const listUsersController = async (req, res) => {
 export const createUserController = async (req, res) => {
   if (!ensureTenantAuthorization(req, res)) return;
   try {
-    const { email, password, role, status } = req.body || {};
+    const {nome, email, password, role, status } = req.body || {};
     const result = await createUser({
+      nome,
       email,
       password,
       role,
@@ -58,6 +59,7 @@ export const createUserController = async (req, res) => {
     return res.status(201).json(result);
   } catch (error) {
     return handleError(res, error, {
+      nome: req.body?.nome,
       email: req.body?.email,
       tenantId: req.tenantId,
       userId: req.user?.id,
