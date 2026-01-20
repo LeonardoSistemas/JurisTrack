@@ -64,6 +64,7 @@
                     <table class="table table-hover align-middle">
                         <thead class="table-light">
                             <tr>
+                                <th>Nome</th>
                                 <th>Email</th>
                                 <th>Role</th>
                                 <th class="text-center">Status</th>
@@ -90,6 +91,10 @@
                 <div class="modal-body">
                     <form id="usuarioForm" class="row g-3">
                         <input type="hidden" id="usuarioId">
+                        <div class="col-md-6">
+                            <label class="form-label">Nome</label>
+                            <input type="text" id="nomeInput" class="form-control" placeholder="Nome completo" required>
+                        </div>
                         <div class="col-md-6">
                             <label class="form-label">E-mail</label>
                             <input type="email" id="emailInput" class="form-control" placeholder="email@exemplo.com" required>

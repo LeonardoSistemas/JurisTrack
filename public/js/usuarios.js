@@ -15,6 +15,7 @@ const els = {
   modalEl: document.getElementById("usuarioModal"),
   modalTitle: document.getElementById("usuarioModalTitle"),
   usuarioId: document.getElementById("usuarioId"),
+  nomeInput: document.getElementById("nomeInput"),
   emailInput: document.getElementById("emailInput"),
   senhaInput: document.getElementById("senhaInput"),
   roleInput: document.getElementById("roleInput"),
@@ -122,6 +123,7 @@ function renderTable() {
   const filtrados = state.users.filter((u) => {
     if (!termo) return true;
     return (
+      (u.nome || "").toLowerCase().includes(termo) ||
       (u.email || "").toLowerCase().includes(termo) ||
       (u.role || "").toLowerCase().includes(termo)
     );
@@ -145,6 +147,7 @@ function renderTable() {
 
       return `
         <tr>
+          <td>${user.nome || "-"}</td>
           <td>${user.email || "-"}</td>
           <td>${user.role || "-"}</td>
           <td class="text-center"><span class="badge ${badgeClass}">${statusLabel}</span></td>
@@ -173,6 +176,8 @@ function abrirModalCriar() {
   if (!els.modalEl) return;
   els.modalTitle.textContent = "Novo Usuário";
   els.usuarioId.value = "";
+  els.nomeInput.removeAttribute("disabled");
+  els.nomeInput.value = "";
   els.emailInput.removeAttribute("disabled");
   els.emailInput.value = "";
   els.senhaInput.value = "";
@@ -185,6 +190,8 @@ function abrirModalEditar(user) {
   if (!els.modalEl) return;
   els.modalTitle.textContent = "Editar Usuário";
   els.usuarioId.value = user.id;
+  els.nomeInput.value = user.nome || "";
+  els.nomeInput.setAttribute("disabled", "disabled");
   els.emailInput.value = user.email || "";
   els.emailInput.setAttribute("disabled", "disabled");
   els.senhaInput.value = "";
@@ -201,10 +208,16 @@ function validarEmail(email) {
 
 async function salvarUsuario() {
   const id = (els.usuarioId?.value || "").trim();
+  const nome = (els.nomeInput?.value || "").trim();
   const email = (els.emailInput?.value || "").trim().toLowerCase();
   const senha = els.senhaInput?.value || "";
   const role = els.roleInput?.value || "";
   const status = els.statusInput?.value || "";
+
+  if (!nome) {
+    showAlert("warning", "O nome é obrigatório.");
+    return;
+  }
 
   if (!id && !validarEmail(email)) {
     showAlert("warning", "Informe um e-mail válido.");
@@ -238,12 +251,16 @@ async function salvarUsuario() {
   if (id) {
     method = "PATCH";
     url = `${API_BASE}/${id}`;
+
+    payload.nome = nome;
     payload.role = role;
     payload.status = status;
+
     if (senha) {
       payload.password = senha;
     }
   } else {
+    payload.nome = nome;
     payload.email = email;
     payload.password = senha;
     payload.role = role;
