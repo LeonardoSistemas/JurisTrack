@@ -13,20 +13,45 @@ function authFetch(url, options = {}) {
 }
 
 document.addEventListener("DOMContentLoaded", () => {
+    // Tenta encontrar o input imediatamente ou aguarda o componente
+    setTimeout(() => {
+        const buscaInput = document.getElementById("buscaInput");
+        if (buscaInput) {
+            buscaInput.addEventListener("keyup", (e) => {
+                if (e.key === "Enter") carregar();
+            });
+        }
+
+        const filtroStatus = document.getElementById("filtroStatus");
+        if (filtroStatus) {
+            filtroStatus.addEventListener("change", carregar);
+        }
+    }, 100);
+
     carregar();
     carregarCombos(); // Função correta para esta tela
 });
 
 // Lista os tribunais
 async function carregar() {
+    const buscaInput = document.getElementById("buscaInput");
+    const termo = buscaInput ? buscaInput.value : "";
+    const filtroStatus = document.getElementById("filtroStatus");
+
     try {
-        const res = await authFetch(API_URL);
-        const dados = await res.json();
+        const res = await authFetch(`${API_URL}?busca=${termo}`);
+        let dados = await res.json();
+
+        // Client-side filtering
+        if (filtroStatus && filtroStatus.value) {
+            const wantActive = filtroStatus.value === 'ativo';
+            dados = dados.filter(d => !!d.ativo === wantActive);
+        }
         const tbody = document.getElementById("tabelaCorpo");
 
         tbody.innerHTML = dados.map(item => {
-            const statusHtml = item.ativo 
-                ? '<span class="badge bg-success">Ativo</span>' 
+            const statusHtml = item.ativo
+                ? '<span class="badge bg-success">Ativo</span>'
                 : '<span class="badge bg-danger">Inativo</span>';
 
             // Pega a descrição dos objetos relacionados (graças ao update no Service)
@@ -59,7 +84,7 @@ async function carregarCombos() {
         const resComarcas = await authFetch("/api/auxiliares/comarcas");
         const comarcas = await resComarcas.json();
         const selComarca = document.getElementById("SelectComarca");
-        if(selComarca) {
+        if (selComarca) {
             selComarca.innerHTML = '<option value="">Selecione...</option>';
             comarcas.forEach(c => {
                 const opt = document.createElement("option");
@@ -73,11 +98,11 @@ async function carregarCombos() {
         const resInstancias = await authFetch("/api/auxiliares/instancias");
         const instancias = await resInstancias.json();
         const selInstancia = document.getElementById("SelectInstancia");
-        if(selInstancia) {
+        if (selInstancia) {
             selInstancia.innerHTML = '<option value="">Selecione...</option>';
             instancias.forEach(i => {
                 const opt = document.createElement("option");
-                opt.value = i.idinstancia; 
+                opt.value = i.idinstancia;
                 opt.textContent = i.descricao;
                 selInstancia.appendChild(opt);
             });
@@ -91,11 +116,11 @@ async function carregarCombos() {
 window.abrirModal = () => {
     document.getElementById("IdRegisto").value = "";
     document.getElementById("Descricao").value = "";
-    if(document.getElementById("SelectComarca")) document.getElementById("SelectComarca").value = "";
-    if(document.getElementById("SelectInstancia")) document.getElementById("SelectInstancia").value = "";
-    
+    if (document.getElementById("SelectComarca")) document.getElementById("SelectComarca").value = "";
+    if (document.getElementById("SelectInstancia")) document.getElementById("SelectInstancia").value = "";
+
     const checkAtivo = document.getElementById("Ativo");
-    if(checkAtivo) checkAtivo.checked = true;
+    if (checkAtivo) checkAtivo.checked = true;
 
     new bootstrap.Modal(document.getElementById("modalAuxiliar")).show();
 };
@@ -103,18 +128,18 @@ window.abrirModal = () => {
 window.editar = (id, desc, idComarca, idInstancia, status) => {
     document.getElementById("IdRegisto").value = id;
     document.getElementById("Descricao").value = desc;
-    
+
     // Define os valores dos selects (se forem nulos ou 'undefined', fica no "Selecione...")
-    if(document.getElementById("SelectComarca")) {
+    if (document.getElementById("SelectComarca")) {
         document.getElementById("SelectComarca").value = (idComarca && idComarca !== 'null' && idComarca !== 'undefined') ? idComarca : "";
     }
-    if(document.getElementById("SelectInstancia")) {
+    if (document.getElementById("SelectInstancia")) {
         document.getElementById("SelectInstancia").value = (idInstancia && idInstancia !== 'null' && idInstancia !== 'undefined') ? idInstancia : "";
     }
 
     const isActive = (String(status) === 'true');
     const checkAtivo = document.getElementById("Ativo");
-    if(checkAtivo) checkAtivo.checked = isActive;
+    if (checkAtivo) checkAtivo.checked = isActive;
 
     new bootstrap.Modal(document.getElementById("modalAuxiliar")).show();
 };
@@ -127,13 +152,13 @@ window.salvar = async () => {
 
     if (!desc) return alert("A descrição é obrigatória.");
 
-    const body = { 
+    const body = {
         descricao: desc,
         idcomarca: idComarca || null,
         idinstancia: idInstancia || null,
         ativo: checkAtivo ? checkAtivo.checked : true
     };
-    
+
     const id = document.getElementById("IdRegisto").value;
     if (id) body[ID_CAMPO] = id;
 
@@ -143,8 +168,8 @@ window.salvar = async () => {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(body)
         });
-        
-        if (res.ok) { 
+
+        if (res.ok) {
             bootstrap.Modal.getInstance(document.getElementById("modalAuxiliar")).hide();
             carregar();
         } else {

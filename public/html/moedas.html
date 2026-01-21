@@ -16,10 +16,14 @@
 
         <div class="flex-grow-1 p-4">
             <div class="card p-4 shadow-sm">
-                <div class="d-flex justify-content-between mb-4">
-                    <h4>Gerir Moedas</h4>
-                    <button class="btn btn-primary" onclick="abrirModal()"><i class="fas fa-plus"></i> Nova
-                        Moeda</button>
+                <h4>Gerir Moedas</h4>
+                <div class="mb-5">
+                    <div class="col-md-2">
+                        <button class="btn btn-primary text-nowrap" onclick="abrirModal()">
+                            <i class="fas fa-plus me-1"></i> Nova Moeda
+                        </button>
+                    </div>
+                    <status-sta style="display: contents;"></status-sta>
                 </div>
                 <table class="table table-hover align-middle">
                     <thead class="table-light">
@@ -34,48 +38,48 @@
                 </table>
             </div>
         </div>
-    </div>
 
-    <div class="modal fade" id="modalAuxiliar" tabindex="-1">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title">Cadastro de Moedas</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body">
-                    <form id="formAuxiliar">
-                        <input type="hidden" id="IdRegisto">
+        <div class="modal fade" id="modalAuxiliar" tabindex="-1">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Cadastro de Moedas</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <form id="formAuxiliar">
+                            <input type="hidden" id="IdRegisto">
 
-                        <div class="mb-3">
-                            <label class="form-label">Nome da Moeda</label>
-                            <input type="text" class="form-control" id="Descricao" required>
-                        </div>
-
-                        <div class="mb-3">
-                            <label class="form-label">Símbolo (ex: R$, $)</label>
-                            <input type="text" class="form-control" id="Simbolo" required>
-                        </div>
-
-                        <div class="mb-3">
-                            <div class="form-check form-switch">
-                                <input class="form-check-input" type="checkbox" id="Ativo" checked>
-                                <label class="form-check-label" for="Ativo">Registro Ativo</label>
+                            <div class="mb-3">
+                                <label class="form-label">Nome da Moeda</label>
+                                <input type="text" class="form-control" id="Descricao" required>
                             </div>
-                        </div>
-                    </form>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                    <button type="button" class="btn btn-primary" onclick="salvar()">Salvar</button>
+
+                            <div class="mb-3">
+                                <label class="form-label">Símbolo (ex: R$, $)</label>
+                                <input type="text" class="form-control" id="Simbolo" required>
+                            </div>
+
+                            <div class="mb-3">
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" id="Ativo" checked>
+                                    <label class="form-check-label" for="Ativo">Registro Ativo</label>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="button" class="btn btn-primary" onclick="salvar()">Salvar</button>
+                    </div>
                 </div>
             </div>
         </div>
-    </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="/js/moedas.js"></script>
-    <script src="/js/components/sidebar.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+        <script src="/js/components/status-sta.js"></script>
+        <script src="/js/moedas.js"></script>
+        <script src="/js/components/sidebar.js"></script>
 </body>
 
 </html>

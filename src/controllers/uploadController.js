@@ -10,6 +10,8 @@ const tratarId = (id) => {
   return id;
 };
 
+// --- CONTROLLERS Upload_Documentos -
+
 export const uploadFile = async (req, res) => {
   if (!ensureTenantAuthorization(req, res)) return;
   try {
@@ -83,5 +85,61 @@ export const listPublications = async (req, res) => {
       error,
     });
     res.status(500).json({ error: "Erro ao listar publicações." });
+  }
+};
+
+// --- CONTROLLERS PROCESSO_DOC ---
+
+export const uploadToProcessoDoc = async (req, res) => {
+  if (!ensureTenantAuthorization(req, res)) return;
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: "Nenhum arquivo enviado" });
+    }
+
+    const { numProcesso, processoId } = req.body;
+    const pId = tratarId(processoId);
+
+    const result = await uploadService.uploadFileToProcessoDoc(
+      req.file,
+      numProcesso,
+      pId,
+      req.tenantId
+    );
+
+    res.status(200).json({
+      message: "Arquivo anexado com sucesso",
+      ...result,
+    });
+  } catch (error) {
+    if (error.statusCode === "409") {
+      return res.status(409).json({ error: "Arquivo em duplicidade." });
+    }
+    logError("upload.processo_doc.error", "Erro upload processo_doc", { error });
+    res.status(500).json({ error: error.message || "Erro ao processar upload." });
+  }
+};
+
+export const listDocsProcesso = async (req, res) => {
+  if (!ensureTenantAuthorization(req, res)) return;
+  try {
+    const { processoId } = req.params;
+    if (!processoId) return res.status(400).json({ error: "ID do processo obrigatório" });
+
+    const documentos = await uploadService.listProcessoDocs(processoId, req.tenantId);
+    res.status(200).json(documentos);
+  } catch (error) {
+    res.status(500).json({ error: "Erro ao listar documentos." });
+  }
+};
+
+export const deleteDocProcesso = async (req, res) => {
+  if (!ensureTenantAuthorization(req, res)) return;
+  try {
+    const { id } = req.params;
+    await uploadService.deleteProcessoDoc(id, req.tenantId);
+    res.status(204).send(); 
+  } catch (error) {
+    res.status(500).json({ error: error.message });
   }
 };

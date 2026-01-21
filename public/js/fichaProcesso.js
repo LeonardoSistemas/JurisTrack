@@ -645,7 +645,7 @@ window.verPublicacao = function (idPublicacao) {
     } else alert("Publicação não encontrada na memória.");
 };
 
-// --- LÓGICA DE DOCUMENTOS ---
+// --- LÓGICA DE DOCUMENTOS PARA processo_Doc---
 
 function formatBytes(bytes, decimals = 2) {
     if (!+bytes) return '0 Bytes';
@@ -695,20 +695,23 @@ async function fazerUploadProcesso(file) {
     formData.append("file", file);
     formData.append("processoId", idProcesso);
     formData.append("numProcesso", numProcesso);
-    formData.append("ignorarN8N", "true");
+    
 
     try {
         if (btnUpload) {
             btnUpload.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Enviando...';
             btnUpload.disabled = true;
         }
-        const res = await authFetch("/upload", { method: "POST", body: formData });
-        if (!res.ok) throw new Error("Erro no upload");
+        const res = await authFetch("/upload/processo-doc", { method: "POST", body: formData });
+        if (!res.ok){ 
+            const err = await res.json();
+            throw new Error(err.error ||"Erro no upload");
+        }
         alert("Upload realizado com sucesso!");
         carregarDocumentosDoProcesso(idProcesso);
     } catch (error) {
         console.error(error);
-        alert("Erro ao enviar arquivo.");
+        alert(error.message ||"Erro ao enviar arquivo.");
     } finally {
         if (btnUpload) {
             btnUpload.innerHTML = '<i class="fas fa-upload"></i> Upload de Arquivos';
@@ -723,7 +726,7 @@ window.deletarDocumento = async function (id) {
     if (btn) btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
 
     try {
-        const res = await authFetch(`/upload/${id}`, { method: 'DELETE' });
+        const res = await authFetch(`/upload/processo-doc/${id}`, { method: 'DELETE' });
         if (!res.ok) throw new Error("Erro ao excluir");
         carregarDocumentosDoProcesso(document.getElementById("IdProcesso").value);
     } catch (error) {
@@ -739,7 +742,7 @@ async function carregarDocumentosDoProcesso(idProcesso) {
     tbody.innerHTML = '<tr><td colspan="5" class="text-center">Carregando...</td></tr>';
 
     try {
-        const res = await authFetch(`/upload/publicacoes?processoId=${idProcesso}`);
+        const res = await authFetch(`/upload/processo-doc/${idProcesso}`);
         const docs = await res.json();
         tbody.innerHTML = "";
 
