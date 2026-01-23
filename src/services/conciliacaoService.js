@@ -119,13 +119,16 @@ async function ensureProcesso(client, { numero_processo, tenantId }) {
     return existing.rows[0].idprocesso;
   }
 
+  // valor gerado para pasta
+  const valoresPasta = `${numero_processo}-${tenantId}`;
+
   const inserted = await client.query(
     `
-      insert into processos (numprocesso, tenant_id)
-      values ($1, $2)
+      insert into processos (numprocesso, pasta, tenant_id)
+      values ($1, $2, $3)
       returning idprocesso
     `,
-    [numero_processo, tenantId]
+    [numero_processo, valoresPasta, tenantId]
   );
 
   return inserted.rows[0].idprocesso;

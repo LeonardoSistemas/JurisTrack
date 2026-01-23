@@ -1,6 +1,7 @@
 import path from "path";
 import moment from "moment-timezone";
 import env from "dotenv";
+import { findTenantById } from "../repositories/tenantRepository.js";
 
 import { logError, logInfo, logWarn } from "./logger.js";
 
@@ -71,17 +72,43 @@ export async function notifyN8NWebhook(uploadId, tenantId) {
     return;
   }
 
+  // 1. Buscar chaves de API do Tenant para enviar ao n8n
+  let tenantKeys = {};
+  try {
+    const tenant = await findTenantById(tenantId);
+    if (tenant) {
+      tenantKeys = {
+        openai_api_key: tenant.openai_api_key,
+        gemini_api_key: tenant.gemini_api_key, // Certifique-se de que a coluna existe no DB
+      };
+    }
+  } catch (keyError) {
+    // Apenas logamos o aviso, não impedimos o envio do webhook se falhar a busca das chaves
+    logWarn(
+      "n8n.webhook.keys_fetch_error",
+      "Não foi possível buscar as chaves do tenant. Enviando webhook sem elas.",
+      { tenantId, error: keyError.message }
+    );
+  }
+
   logInfo("n8n.webhook.dispatch", "Acionando webhook do n8n", {
     uploadId,
     tenantId,
     webhookUrl: N8N_WEBHOOK_URL,
+    hasOpenAiKey: !!tenantKeys.openai_api_key,
+    hasGeminiKey: !!tenantKeys.gemini_api_key
   });
+
   try {
     // Nota: chamada permanece assíncrona em background
     const webhookResponse = await fetch(N8N_WEBHOOK_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id: uploadId, tenant_id: tenantId }),
+      body: JSON.stringify({ 
+        id: uploadId, 
+        tenant_id: tenantId,
+        ...tenantKeys // Espalha as chaves no JSON (openai_api_key, gemini_api_key)
+      }),
     });
 
     if (webhookResponse.ok) {

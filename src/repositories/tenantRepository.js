@@ -8,7 +8,8 @@ export async function findTenantById(tenantId) {
 
   const { data, error } = await supabase
     .from("tenants")
-    .select("id, nome, status, openai_api_key, created_at, updated_at")
+    // ADICIONADO: gemini_api_key na lista de seleção
+    .select("id, nome, status, openai_api_key, gemini_api_key, created_at, updated_at")
     .eq("id", tenantId)
     .maybeSingle();
 
@@ -29,4 +30,3 @@ export async function findActiveTenantById(tenantId) {
   if (!tenant) return null;
   return tenant.status === "ativo" ? tenant : null;
 }
-
