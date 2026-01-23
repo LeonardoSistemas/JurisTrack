@@ -1,5 +1,5 @@
 const API_URL = '/api/auxiliares/moedas';
-const ID_CAMPO = 'idmoeda'; 
+const ID_CAMPO = 'idmoeda';
 const AUTH_TOKEN_KEY = "juristrack_token";
 
 function authFetch(url, options = {}) {
@@ -13,14 +13,39 @@ function authFetch(url, options = {}) {
 }
 
 document.addEventListener("DOMContentLoaded", () => {
+    // Tenta encontrar o input imediatamente ou aguarda o componente
+    setTimeout(() => {
+        const buscaInput = document.getElementById("buscaInput");
+        if (buscaInput) {
+            buscaInput.addEventListener("keyup", (e) => {
+                if (e.key === "Enter") carregar();
+            });
+        }
+
+        const filtroStatus = document.getElementById("filtroStatus");
+        if (filtroStatus) {
+            filtroStatus.addEventListener("change", carregar);
+        }
+    }, 100);
+
     carregar();
 });
 
 async function carregar() {
     try {
-        const res = await authFetch(API_URL);
-        const dados = await res.json();
-       
+        const buscaInput = document.getElementById("buscaInput");
+        const termo = buscaInput ? buscaInput.value : "";
+        const filtroStatus = document.getElementById("filtroStatus");
+
+        const res = await authFetch(`${API_URL}?busca=${termo}`);
+        let dados = await res.json();
+
+        // Client-side filtering
+        if (filtroStatus && filtroStatus.value) {
+            const wantActive = filtroStatus.value === 'ativo';
+            dados = dados.filter(d => !!d.ativo === wantActive);
+        }
+
         const tbody = document.getElementById("tabelaCorpo");
 
         if (dados.length === 0) {
@@ -29,14 +54,14 @@ async function carregar() {
         }
 
         tbody.innerHTML = dados.map(item => {
-            const statusHtml = item.ativo 
-                ? '<span class="badge bg-success">Ativo</span>' 
+            const statusHtml = item.ativo
+                ? '<span class="badge bg-success">Ativo</span>'
                 : '<span class="badge bg-danger">Inativo</span>';
 
             const idMoedaReal = item.idmoeda || item.IdMoeda || item.idMoeda;
-            
+
             // Tratamento para evitar erro caso simbolo venha null
-            const simboloSafe = item.simbolo || ''; 
+            const simboloSafe = item.simbolo || '';
 
             // CORREÇÃO: Passando o símbolo para a função editar
             return `
@@ -62,9 +87,9 @@ window.abrirModal = () => {
     document.getElementById("Descricao").value = "";
     // CORREÇÃO: Limpar campo Símbolo
     document.getElementById("Simbolo").value = "";
-   
+
     const checkAtivo = document.getElementById("Ativo");
-    if(checkAtivo) checkAtivo.checked = true;
+    if (checkAtivo) checkAtivo.checked = true;
 
     new bootstrap.Modal(document.getElementById("modalAuxiliar")).show();
 };
@@ -75,11 +100,11 @@ window.editar = (id, desc, simbolo, status) => {
     document.getElementById("Descricao").value = desc;
     // CORREÇÃO: Preencher campo Símbolo
     document.getElementById("Simbolo").value = simbolo;
-    
+
     // Converte para boolean corretamente (string 'true' vira true)
     const isActive = (String(status) === 'true');
     const checkAtivo = document.getElementById("Ativo");
-    if(checkAtivo) checkAtivo.checked = isActive;
+    if (checkAtivo) checkAtivo.checked = isActive;
 
     new bootstrap.Modal(document.getElementById("modalAuxiliar")).show();
 };
@@ -93,14 +118,14 @@ window.salvar = async () => {
     if (!desc) return alert("A descrição é obrigatória.");
     if (!sim) return alert("O símbolo é obrigatório."); // Validação extra
 
-    const body = { 
+    const body = {
         descricao: desc,
         simbolo: sim, // CORREÇÃO: Incluído no payload para a API
         ativo: checkAtivo ? checkAtivo.checked : true
     };
-    
+
     const id = document.getElementById("IdRegisto").value;
-    
+
     if (id) body[ID_CAMPO] = id;
 
     try {
@@ -109,13 +134,13 @@ window.salvar = async () => {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(body)
         });
-        
-        if (res.ok) { 
+
+        if (res.ok) {
             // Fecha o modal corretamente
             const modalEl = document.getElementById("modalAuxiliar");
             const modal = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
             modal.hide();
-            
+
             carregar();
         } else {
             const erro = await res.json();

@@ -29,6 +29,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         carregarSelect("/api/auxiliares/situacoes", "id_situacao"),
         carregarSelect("/api/auxiliares/probabilidades", "id_probabilidade"),
         carregarSelect("/api/auxiliares/moedas", "id_moeda"),
+        carregarUsuariosResponsaveis(),
         carregarPessoas()
     ]);
 
@@ -37,7 +38,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     const id = params.get("id");
     const modo = params.get("modo");
 
-    // Configuração do Upload na aba documentos
     configurarUpload();
 
     if (id) {
@@ -142,7 +142,6 @@ async function carregarDadosProcesso(id) {
         setVal("IdVara", proc.idvara);
         setVal("id_advogado", proc.idadvogado);
 
-        // Carrega Partes
         partesProcesso = [];
         if (proc.partes && Array.isArray(proc.partes)) {
             partesProcesso = proc.partes.map(p => ({
@@ -165,12 +164,8 @@ async function carregarDadosProcesso(id) {
         } else if (proc.idcidade) { setVal("IdCidade", proc.idcidade); }
 
         cachePublicacoes = proc.Publicacao || [];
-
-        // CORREÇÃO: Passar o objeto 'proc' completo, pois a função agora espera ele para ler o advogado
         renderizarPrazos(proc);
         renderizarAndamentos(proc);
-
-        // Carrega documentos
         await carregarDocumentosDoProcesso(id);
 
     } catch (error) {
@@ -187,6 +182,7 @@ function renderizarTabelaPartes() {
     partesProcesso.forEach((parte, index) => {
         const tr = document.createElement("tr");
 
+        // Coluna Tipo
         const tdTipo = document.createElement("td");
         const selTipo = document.createElement("select");
         selTipo.className = "form-select form-select-sm";
@@ -195,51 +191,82 @@ function renderizarTabelaPartes() {
         selTipo.onchange = (e) => { partesProcesso[index].tipo = e.target.value; };
         tdTipo.appendChild(selTipo);
 
+        // Coluna Nome com Tom Select
         const tdNome = document.createElement("td");
         const selPessoa = document.createElement("select");
-        selPessoa.className = "form-select form-select-sm";
+        selPessoa.className = "select-pessoa-busca"; // Classe para o Tom Select
         selPessoa.appendChild(new Option("Selecione...", ""));
+        
         listaPessoasCache.forEach(p => {
             selPessoa.appendChild(new Option(p.nome, p.idpessoa));
         });
+        
         selPessoa.value = parte.idpessoa || "";
-        selPessoa.onchange = (e) => atualizarParte(index, e.target.value);
         tdNome.appendChild(selPessoa);
 
+        // Coluna CPF (Input que será atualizado via JS)
         const tdCpf = document.createElement("td");
         const inputCpf = document.createElement("input");
         inputCpf.type = "text";
-        inputCpf.className = "form-control form-control-sm";
+        inputCpf.id = `cpf-input-${index}`; // ID único para atualização rápida
+        inputCpf.className = "form-control form-control-sm bg-light";
         inputCpf.readOnly = true;
         inputCpf.value = parte.cpf || "";
         tdCpf.appendChild(inputCpf);
 
+        // Coluna Ações
         const tdAcoes = document.createElement("td");
         tdAcoes.className = "text-end";
-
-        if (parte.idpessoa) {
-            const btnEdit = document.createElement("button");
-            btnEdit.className = "btn btn-sm btn-outline-secondary me-1";
-            btnEdit.innerHTML = '<i class="fas fa-pen"></i>';
-            btnEdit.onclick = () => abrirModalPessoa('Editar', parte.idpessoa);
-            tdAcoes.appendChild(btnEdit);
-        }
-
-        const btnDel = document.createElement("button");
-        btnDel.className = "btn btn-sm btn-outline-danger";
-        btnDel.innerHTML = '<i class="fas fa-trash"></i>';
-        btnDel.onclick = () => removerLinhaParte(index);
-        tdAcoes.appendChild(btnDel);
+        tdAcoes.innerHTML = `
+            <button type="button" class="btn btn-sm btn-outline-danger" onclick="removerLinhaParte(${index})">
+                <i class="fas fa-trash"></i>
+            </button>
+        `;
 
         tr.appendChild(tdTipo);
         tr.appendChild(tdNome);
         tr.appendChild(tdCpf);
         tr.appendChild(tdAcoes);
         tbody.appendChild(tr);
+
+        // INICIALIZAÇÃO DO TOM SELECT SEM RESETAR A TABELA
+        setTimeout(() => {
+            if (typeof TomSelect !== "undefined") {
+                new TomSelect(selPessoa, {
+                    create: false,
+                    maxOptions: 100,
+                    placeholder: "Digite o nome...",
+                    allowEmptyOption: true,
+                    maxOptions: 100, // Limita opções visíveis para melhorar performance
+                    onChange: (val) => {
+                        // Atualiza os dados silenciosamente sem disparar renderizarTabelaPartes()
+                        atualizarParteSilencioso(index, val);
+                    }
+                });
+            }
+        }, 10);
     });
 
     if (partesProcesso.length === 0) {
         tbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted">Nenhuma parte adicionada.</td></tr>';
+    }
+}
+
+// --- ATUALIZAÇÃO SILENCIOSA (Evita travamentos) ---
+function atualizarParteSilencioso(index, idpessoa) {
+    const pessoa = listaPessoasCache.find(p => p.idpessoa == idpessoa);
+    const inputCpf = document.getElementById(`cpf-input-${index}`);
+
+    if (pessoa) {
+        partesProcesso[index].idpessoa = pessoa.idpessoa;
+        partesProcesso[index].nome = pessoa.nome;
+        partesProcesso[index].cpf = pessoa.cpf_cnpj;
+        if (inputCpf) inputCpf.value = pessoa.cpf_cnpj; // Atualiza apenas o campo CPF no DOM
+    } else {
+        partesProcesso[index].idpessoa = "";
+        partesProcesso[index].nome = "";
+        partesProcesso[index].cpf = "";
+        if (inputCpf) inputCpf.value = "";
     }
 }
 
@@ -387,26 +414,15 @@ window.excluirProcesso = async function () {
     } catch (e) { console.error(e); }
 };
 
-// --- RENDERIZA PRAZOS ---
 function renderizarPrazos(proc) {
     const tbody = document.querySelector("#tab-prazos tbody");
     if (!tbody) return;
     tbody.innerHTML = "";
 
-    // Configura opções de responsável no modal
-    if (proc.advogado) {
-        const selectResp = document.getElementById("respPrazoManual");
-        if (selectResp) selectResp.innerHTML = `<option value="${proc.advogado.idpessoa}">${proc.advogado.nome}</option>`;
-
-        const selectRespAnd = document.getElementById("respAndamentoManual");
-        if (selectRespAnd) selectRespAnd.innerHTML = `<option value="${proc.advogado.idpessoa}">${proc.advogado.nome}</option>`;
-    }
-
     const prazosEncontrados = [];
 
     if (proc.Publicacao && Array.isArray(proc.Publicacao)) {
         proc.Publicacao.forEach(pub => {
-            // Garante que prazos seja um array, mesmo que venha como objeto ou nulo
             let listaPrazos = [];
             if (Array.isArray(pub.Prazo)) {
                 listaPrazos = pub.Prazo;
@@ -416,42 +432,15 @@ function renderizarPrazos(proc) {
 
             if (listaPrazos.length > 0) {
                 listaPrazos.forEach(prazo => {
-                    // Tenta identificar o responsável
-                    // 1. Tenta pegar pelo join direto com a tabela pessoas (NOVO MODELO)
                     let nomeResponsavel = "Sistema";
-
                     if (prazo.responsavel && prazo.responsavel.nome) {
                         nomeResponsavel = prazo.responsavel.nome;
-                    } else {
-                        // 2. Fallback para modelo antigo (Parse do texto da publicação)
-                        // Verifica se é manual (pela string de "Prazo Manual" que colocamos no texto da publicação fictícia)
-                        const isManual = pub.texto_integral && pub.texto_integral.includes("Prazo Manual");
-
-                        if (isManual) {
-                            nomeResponsavel = "Manual";
-
-                            // Tenta extrair o nome do responsável do texto salvo (Formato: "Prazo Manual | Resp: NOME | ...")
-                            if (pub.texto_integral.includes("| Resp: ")) {
-                                try {
-                                    const parts = pub.texto_integral.split("| Resp: ");
-                                    if (parts.length > 1) {
-                                        // Pega o trecho após "Resp: " e antes do próximo pipe ou fim da string
-                                        nomeResponsavel = parts[1].split("|")[0].trim();
-                                    }
-                                } catch (e) {
-                                    console.warn("Erro ao fazer parse do responsável do prazo", e);
-                                }
-                            }
-                        }
                     }
-
                     prazosEncontrados.push({ ...prazo, responsavel: nomeResponsavel });
                 });
             }
         });
     }
-
-
 
     if (prazosEncontrados.length === 0) {
         tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">Nenhum prazo cadastrado</td></tr>';
@@ -459,11 +448,8 @@ function renderizarPrazos(proc) {
     }
     prazosEncontrados.sort((a, b) => new Date(a.data_limite) - new Date(b.data_limite));
     prazosEncontrados.forEach(p => {
-
-        // Se vier como string YYYY-MM-DD, fazemos split.
         let dataVenc = 'Sem data';
         if (p.data_limite) {
-            // Se já for data completa ISO com T, new Date funciona. Mas supabase manda date yyyy-mm-dd
             if (p.data_limite.includes('T')) {
                 dataVenc = new Date(p.data_limite).toLocaleDateString('pt-BR', { timeZone: 'UTC' });
             } else {
@@ -473,16 +459,14 @@ function renderizarPrazos(proc) {
         }
 
         const hoje = new Date();
-        hoje.setHours(0, 0, 0, 0); // Zera hora para comparar apenas data
+        hoje.setHours(0, 0, 0, 0);
 
-        // Para comparação correta, criamos data interpretando como local ou meio dia
         let dataLimiteObj = null;
         if (p.data_limite) {
             const [ano, mes, dia] = p.data_limite.split('T')[0].split('-');
-            dataLimiteObj = new Date(ano, mes - 1, dia); // Mês é 0-indexed
+            dataLimiteObj = new Date(ano, mes - 1, dia);
         }
 
-        // const dataLimiteObj = p.data_limite ? new Date(p.data_limite) : null; // VEIO ERRADO ANTES (UTC < Local time zone shift)
         let statusBadge = '<span class="badge bg-secondary">Pendente</span>';
         if (dataLimiteObj && dataLimiteObj < hoje) {
             statusBadge = '<span class="badge bg-danger">Vencido</span>';
@@ -490,7 +474,6 @@ function renderizarPrazos(proc) {
             statusBadge = '<span class="badge bg-warning text-dark">Em Aberto</span>';
         }
 
-        // Renderiza coluna responsável
         let respHtml = p.responsavel === "Sistema" ? `<span class="badge bg-light text-dark border">Sistema</span>` : `<span class="badge bg-info text-dark">${p.responsavel}</span>`;
 
         const tr = document.createElement("tr");
@@ -499,7 +482,6 @@ function renderizarPrazos(proc) {
     });
 }
 
-// --- RENDERIZA ANDAMENTOS ---
 function renderizarAndamentos(proc) {
     const tabAndamentos = document.getElementById("tab-andamentos");
     if (!tabAndamentos) return;
@@ -607,10 +589,9 @@ function renderizarAndamentos(proc) {
 }
 
 window.abrirModalAndamento = function () {
-    const selectOrigem = document.getElementById("id_advogado");
-    const selectDestino = document.getElementById("respAndamentoManual");
-    if (selectOrigem && selectDestino) selectDestino.innerHTML = selectOrigem.innerHTML;
     document.getElementById("dataAndamentoManual").valueAsDate = new Date();
+    document.getElementById("descAndamentoManual").value = "";
+    document.getElementById("respAndamentoManual").value = "";
     new bootstrap.Modal(document.getElementById("modalNovoAndamento")).show();
 };
 
@@ -664,7 +645,7 @@ window.verPublicacao = function (idPublicacao) {
     } else alert("Publicação não encontrada na memória.");
 };
 
-// --- LÓGICA DE DOCUMENTOS (ATUALIZADA PARA IGNORAR N8N) ---
+// --- LÓGICA DE DOCUMENTOS PARA processo_Doc---
 
 function formatBytes(bytes, decimals = 2) {
     if (!+bytes) return '0 Bytes';
@@ -714,29 +695,23 @@ async function fazerUploadProcesso(file) {
     formData.append("file", file);
     formData.append("processoId", idProcesso);
     formData.append("numProcesso", numProcesso);
-
-    // ALTERAÇÃO IMPORTANTE: Flag para ignorar N8N
-    formData.append("ignorarN8N", "true");
+    
 
     try {
         if (btnUpload) {
             btnUpload.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Enviando...';
             btnUpload.disabled = true;
         }
-
-        const res = await authFetch("/upload", {
-            method: "POST",
-            body: formData
-        });
-
-        if (!res.ok) throw new Error("Erro no upload");
-
+        const res = await authFetch("/upload/processo-doc", { method: "POST", body: formData });
+        if (!res.ok){ 
+            const err = await res.json();
+            throw new Error(err.error ||"Erro no upload");
+        }
         alert("Upload realizado com sucesso!");
         carregarDocumentosDoProcesso(idProcesso);
-
     } catch (error) {
         console.error(error);
-        alert("Erro ao enviar arquivo.");
+        alert(error.message ||"Erro ao enviar arquivo.");
     } finally {
         if (btnUpload) {
             btnUpload.innerHTML = '<i class="fas fa-upload"></i> Upload de Arquivos';
@@ -751,7 +726,7 @@ window.deletarDocumento = async function (id) {
     if (btn) btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
 
     try {
-        const res = await authFetch(`/upload/${id}`, { method: 'DELETE' });
+        const res = await authFetch(`/upload/processo-doc/${id}`, { method: 'DELETE' });
         if (!res.ok) throw new Error("Erro ao excluir");
         carregarDocumentosDoProcesso(document.getElementById("IdProcesso").value);
     } catch (error) {
@@ -767,7 +742,7 @@ async function carregarDocumentosDoProcesso(idProcesso) {
     tbody.innerHTML = '<tr><td colspan="5" class="text-center">Carregando...</td></tr>';
 
     try {
-        const res = await authFetch(`/upload/publicacoes?processoId=${idProcesso}`);
+        const res = await authFetch(`/upload/processo-doc/${idProcesso}`);
         const docs = await res.json();
         tbody.innerHTML = "";
 
@@ -799,7 +774,6 @@ async function carregarDocumentosDoProcesso(idProcesso) {
         tbody.innerHTML = '<tr><td colspan="5" class="text-center text-danger">Erro ao carregar documentos.</td></tr>';
     }
 
-    // Reaplica bloqueio se estiver em modo leitura (para garantir)
     if (new URLSearchParams(window.location.search).get("modo") === 'leitura') {
         bloquearEdicao();
     }
@@ -809,27 +783,22 @@ function bloquearEdicao() {
     const titulo = document.getElementById("headerTitulo");
     if (titulo) titulo.innerHTML = '<i class="fas fa-lock"></i> Visualizar Processo (Leitura)';
 
-    // Desabilitar inputs
     document.querySelectorAll("input, select, textarea").forEach(campo => {
         campo.disabled = true;
         campo.style.backgroundColor = "#e9ecef";
         campo.style.cursor = "not-allowed";
     });
 
-    // Lista de selctores para esconder botões de ação
+    // Desabilita Tom Select
+    document.querySelectorAll('.select-pessoa-busca').forEach(el => {
+        if (el.tomselect) el.tomselect.disable();
+    });
+
     const selectorsToHide = [
-        "#btnSalvar",
-        "#btnExcluir",
-        "#btnAdicionarDoc",
-        "button[onclick='salvarProcesso()']",
-        "button[onclick='adicionarLinhaParte()']", // Adicionar Partes
-        "#tab-partes button", // Botões na aba partes (incluindo ações da tabela)
-        "#tab-andamentos button", // Nova Petição, Novo Andamento
-        "#tab-documentos button", // Upload de arquivos, ações da tabela
-        "#tab-prazos button", // Ações da tabela de prazos
-        ".tab-content .btn-outline-danger", // Botões de excluir (apenas dentro das abas)
-        ".tab-content .btn-outline-secondary", // Botões de editar (apenas dentro das abas)
-        "td button" // Botões em células de tabela (Geralmente excluir/editar)
+        "#btnSalvar", "#btnExcluir", "#btnAdicionarDoc", "button[onclick='salvarProcesso()']",
+        "button[onclick='adicionarLinhaParte()']", "#tab-partes button", "#tab-andamentos button",
+        "#tab-documentos button", "#tab-prazos button", ".tab-content .btn-outline-danger",
+        ".tab-content .btn-outline-secondary", "td button"
     ];
 
     selectorsToHide.forEach(selector => {
@@ -839,43 +808,26 @@ function bloquearEdicao() {
     });
 }
 
-// --- FUNÇÕES DE PRAZO MANUAL (Adicionadas no final para garantir carregamento) ---
 window.abrirModalPrazo = function () {
-    // Copia opções de advogados para o select de responsáveis do prazo
-    const selectOrigem = document.getElementById("id_advogado");
-    const selectDestino = document.getElementById("respPrazoManual");
-
-    if (selectOrigem && selectDestino) {
-        selectDestino.innerHTML = selectOrigem.innerHTML;
-    }
-
-    // Limpa campos e define valor padrão
     document.getElementById("descPrazoManual").value = "";
     document.getElementById("dataPrazoManual").value = "";
     document.getElementById("respPrazoManual").value = "";
-
     const modalEl = document.getElementById("modalNovoPrazo");
     if (modalEl) new bootstrap.Modal(modalEl).show();
-    else alert("Erro: Modal de prazo não encontrado no HTML.");
 };
 
 window.salvarPrazoManual = async function () {
+    const responsavelId = document.getElementById("respPrazoManual").value;
     const idProcesso = document.getElementById("IdProcesso").value;
     const descricao = document.getElementById("descPrazoManual").value;
     const dataLimite = document.getElementById("dataPrazoManual").value;
-    const responsavelId = document.getElementById("respPrazoManual").value;
 
     if (!descricao || !dataLimite) {
         alert("Descrição e Data de Vencimento são obrigatórios!");
         return;
     }
 
-    const payload = {
-        processoId: idProcesso,
-        descricao: descricao,
-        data_limite: dataLimite,
-        responsavelId: responsavelId
-    };
+    const payload = { processoId: idProcesso, descricao: descricao, data_limite: dataLimite, responsavelId: responsavelId };
 
     try {
         const btnSalvar = document.querySelector("#modalNovoPrazo .btn-primary");
@@ -897,10 +849,8 @@ window.salvarPrazoManual = async function () {
             const err = await res.json();
             alert("Erro ao criar prazo: " + (err.error || "Desconhecido"));
         }
-
         btnSalvar.disabled = false;
         btnSalvar.innerHTML = textoOriginal;
-
     } catch (e) {
         alert("Erro de conexão ao salvar prazo.");
         console.error(e);
@@ -908,3 +858,22 @@ window.salvarPrazoManual = async function () {
         if (btnSalvar) btnSalvar.disabled = false;
     }
 };
+
+async function carregarUsuariosResponsaveis() {
+    try {
+        const res = await authFetch("/api/users");
+        const usuarios = await res.json();
+        const selects = [document.getElementById("respPrazoManual"), document.getElementById("respAndamentoManual")];
+        selects.forEach(select => {
+            if (select) {
+                select.innerHTML = '<option value="">Selecione um responsável...</option>';
+                usuarios.forEach(user => {
+                    const opt = document.createElement("option");
+                    opt.value = user.id;
+                    opt.textContent = (user.nome && user.nome.trim() !== "") ? user.nome : user.email;
+                    select.appendChild(opt);
+                });
+            }
+        });
+    } catch (e) { console.error("Erro ao carregar usuários:", e); }
+}

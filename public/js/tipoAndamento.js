@@ -1,6 +1,7 @@
-const API_URL = '/api/auxiliares/fases';
-const ID_CAMPO = 'idfase';
+const API_URL = '/api/auxiliares/TipoAndamento';
+const ID_CAMPO = 'id';
 const AUTH_TOKEN_KEY = "juristrack_token";
+
 function authFetch(url, options = {}) {
     const token = localStorage.getItem(AUTH_TOKEN_KEY);
     if (!token) {
@@ -47,8 +48,8 @@ async function carregar() {
 
         const tbody = document.getElementById("tabelaCorpo");
 
-        if (dados.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="3" class="text-center text-muted">Nenhuma Fase cadastrada.</td></tr>';
+        if (!dados || dados.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="3" class="text-center text-muted">Nenhum tipo de andamento cadastrado.</td></tr>';
             return;
         }
 
@@ -57,15 +58,15 @@ async function carregar() {
                 ? '<span class="badge bg-success">Ativo</span>'
                 : '<span class="badge bg-danger">Inativo</span>';
 
-            const idFaseReal = item.idfase || item.IdFase || item.idFase;
+            const idTipo = item[ID_CAMPO];
 
             return `
             <tr>
-                <td>${item.descricao}</td>
+                <td>${item.descricao || 'Sem descrição'}</td>
                 <td>${statusHtml}</td>
                 <td class="text-end">
                     <button class="btn btn-sm btn-outline-secondary" 
-                        onclick="editar('${idFaseReal}', '${item.descricao}', ${item.ativo})">
+                        onclick="editar('${idTipo}', '${item.descricao}', ${item.ativo})">
                         <i class="fas fa-pen"></i>
                     </button>
                 </td>
@@ -73,15 +74,13 @@ async function carregar() {
         }).join('');
     } catch (error) {
         console.error("Erro ao carregar:", error);
+        document.getElementById("tabelaCorpo").innerHTML = '<tr><td colspan="3" class="text-danger text-center">Erro ao carregar dados.</td></tr>';
     }
 }
-
 
 window.abrirModal = () => {
     document.getElementById("IdRegisto").value = "";
     document.getElementById("Descricao").value = "";
-
-
     const checkAtivo = document.getElementById("Ativo");
     if (checkAtivo) checkAtivo.checked = true;
 
@@ -105,15 +104,12 @@ window.salvar = async () => {
 
     if (!desc) return alert("A descrição é obrigatória.");
 
-
     const body = {
         descricao: desc,
         ativo: checkAtivo ? checkAtivo.checked : true
     };
 
     const id = document.getElementById("IdRegisto").value;
-
-
     if (id) body[ID_CAMPO] = id;
 
     try {
@@ -124,7 +120,9 @@ window.salvar = async () => {
         });
 
         if (res.ok) {
-            bootstrap.Modal.getInstance(document.getElementById("modalAuxiliar")).hide();
+            const modalEl = document.getElementById("modalAuxiliar");
+            const modal = bootstrap.Modal.getInstance(modalEl);
+            if (modal) modal.hide();
             carregar();
         } else {
             const erro = await res.json();
