@@ -118,7 +118,24 @@ function bindEvents() {
     }
   });
 
-  els.modalEl?.addEventListener("hidden.bs.modal", resetModalSections);
+  if (els.modalEl) {
+    els.modalEl.addEventListener("hidden.bs.modal", () => {
+      resetModalSections();
+      const modalInstance = bootstrap.Modal.getInstance(els.modalEl);
+      if (modalInstance) modalInstance.dispose();
+      cleanupModalState();
+    });
+  }
+}
+
+function cleanupModalState() {
+  const anyModalOpen = document.querySelectorAll(".modal.show").length > 0;
+  if (!anyModalOpen) {
+    document.body.classList.remove("modal-open");
+    document.body.style.removeProperty("overflow");
+    document.body.style.removeProperty("padding-right");
+    document.querySelectorAll(".modal-backdrop").forEach((el) => el.remove());
+  }
 }
 
 function setTableMessage(text) {

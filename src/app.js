@@ -137,6 +137,18 @@ app.get("/eventos", (req, res) => {
   res.sendFile(path.join(__dirname, "../public", "html", "eventos.html"));
 });
 
+app.get("/eventos-mapeamentos", (req, res) => {
+  res.sendFile(
+    path.join(__dirname, "../public", "html", "eventos-mapeamentos.html")
+  );
+});
+
+app.get("/eventos-regras", (req, res) => {
+  res.sendFile(
+    path.join(__dirname, "../public", "html", "eventos-regras.html")
+  );
+});
+
 app.get("/providencias", (req, res) => {
   res.sendFile(path.join(__dirname, "../public", "html", "providencias.html"));
 });

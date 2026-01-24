@@ -131,6 +131,31 @@ export const deleteMapping = async (req, res) => {
   }
 };
 
+export const updateMapping = async (req, res) => {
+  if (!ensureTenantAuthorization(req, res)) return;
+
+  try {
+    const result = await configuracaoEventoService.updateMapping({
+      tenantId: req.tenantId,
+      mappingId: req.params?.id,
+      payload: req.body,
+    });
+    return res.status(200).json(result);
+  } catch (error) {
+    const status = error.statusCode || error.status || 500;
+    logError(
+      "config-event.controller.mappings_update_error",
+      "Failed to update mapping.",
+      {
+        error,
+        tenantId: req.tenantId,
+        userId: req.user?.id,
+      }
+    );
+    return res.status(status).json({ error: error.message || "Internal server error." });
+  }
+};
+
 export const listEventoProvidencias = async (req, res) => {
   if (!ensureTenantAuthorization(req, res)) return;
 

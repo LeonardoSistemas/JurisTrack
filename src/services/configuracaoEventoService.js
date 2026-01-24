@@ -280,6 +280,77 @@ export const createMapping = async ({ tenantId, payload, dependencies } = {}) =>
   return data;
 };
 
+export const updateMapping = async ({
+  tenantId,
+  mappingId,
+  payload,
+  dependencies,
+} = {}) => {
+  const { injectTenant: injectTenantPayload, withTenantFilter: tenantFilter } =
+    resolveDependencies(dependencies);
+
+  if (!mappingId) {
+    throw new ValidationError("mappingId é obrigatório.");
+  }
+  if (!payload || typeof payload !== "object") {
+    throw new ValidationError("Payload inválido.");
+  }
+
+  const andamentoDescricao = normalizeText(payload.andamento_descricao);
+  if (!andamentoDescricao) {
+    throw new ValidationError("Descrição do andamento é obrigatória.");
+  }
+
+  const eventoId = normalizeText(payload.evento_id);
+  if (!eventoId) {
+    throw new ValidationError("Evento é obrigatório.");
+  }
+
+  const tipoMatch = normalizeMatchType(payload.tipo_match);
+
+  const { data: eventData, error: eventError } = await tenantFilter(
+    "evento_processual",
+    tenantId
+  )
+    .select("id")
+    .eq("id", eventoId)
+    .maybeSingle();
+
+  if (eventError) throw eventError;
+  if (!eventData) {
+    throw new ValidationError("Evento inválido para o tenant informado.");
+  }
+
+  const mappingPayload = injectTenantPayload(
+    {
+      andamento_descricao: andamentoDescricao,
+      evento_id: eventoId,
+      tipo_match: tipoMatch,
+      updated_at: nowIsoString(),
+    },
+    tenantId
+  );
+
+  const { data, error } = await tenantFilter("andamento_evento", tenantId)
+    .update(mappingPayload)
+    .eq("id", mappingId)
+    .select("id, andamento_descricao, tipo_match, evento_id, created_at, updated_at")
+    .maybeSingle();
+
+  if (error) {
+    if (error.code === "23505") {
+      throw new ConflictError("Mapeamento já cadastrado para este tenant.");
+    }
+    throw error;
+  }
+
+  if (!data) {
+    throw new NotFoundError("Mapeamento não encontrado.");
+  }
+
+  return data;
+};
+
 export const deleteMapping = async ({ tenantId, mappingId, dependencies } = {}) => {
   const { withTenantFilter: tenantFilter } = resolveDependencies(dependencies);
   if (!mappingId) {

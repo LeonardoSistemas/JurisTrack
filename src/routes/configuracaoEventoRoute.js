@@ -9,6 +9,10 @@ router.put("/eventos/:id", configuracaoEventoController.updateEvent);
 
 router.get("/eventos/mapeamentos", configuracaoEventoController.listMappings);
 router.post("/eventos/mapeamentos", configuracaoEventoController.createMapping);
+router.put(
+  "/eventos/mapeamentos/:id",
+  configuracaoEventoController.updateMapping
+);
 router.delete(
   "/eventos/mapeamentos/:id",
   configuracaoEventoController.deleteMapping

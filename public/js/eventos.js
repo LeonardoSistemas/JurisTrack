@@ -13,6 +13,12 @@ const state = {
   regras: [],
 };
 
+const pagination = {
+  eventos: { page: 1, pageSize: 10 },
+  mapeamentos: { page: 1, pageSize: 10 },
+  regras: { page: 1, pageSize: 10 },
+};
+
 const els = {
   tabelaBody: document.getElementById("tabelaEventosBody"),
   busca: document.getElementById("buscaInput"),
@@ -28,12 +34,25 @@ const els = {
   ativoInput: document.getElementById("ativoInput"),
   salvarBtn: document.getElementById("salvarEventoBtn"),
   mappingAlertArea: document.getElementById("mappingAlertArea"),
+  mappingBusca: document.getElementById("mapeamentoBuscaInput"),
+  mappingBtnBuscar: document.getElementById("btnBuscarMapeamentos"),
+  btnNovoMapeamento: document.getElementById("btnNovoMapeamento"),
+  modalMapeamentoEl: document.getElementById("modalMapeamento"),
+  modalMapeamentoTitle: document.getElementById("modalMapeamentoTitle"),
+  mapeamentoId: document.getElementById("mapeamentoId"),
   andamentoInput: document.getElementById("andamentoInput"),
   eventoMapeamentoSelect: document.getElementById("eventoMapeamentoSelect"),
   tipoMatchSelect: document.getElementById("tipoMatchSelect"),
   salvarMapeamentoBtn: document.getElementById("salvarMapeamentoBtn"),
   tabelaMapeamentosBody: document.getElementById("tabelaMapeamentosBody"),
   regrasAlertArea: document.getElementById("regrasAlertArea"),
+  regrasBuscaEvento: document.getElementById("regrasBuscaEvento"),
+  regrasBuscaProvidencia: document.getElementById("regrasBuscaProvidencia"),
+  regrasBuscaPrazo: document.getElementById("regrasBuscaPrazo"),
+  btnBuscarRegras: document.getElementById("btnBuscarRegras"),
+  btnNovaRegra: document.getElementById("btnNovaRegra"),
+  modalRegraEl: document.getElementById("modalRegra"),
+  modalRegraTitle: document.getElementById("modalRegraTitle"),
   regraId: document.getElementById("regraId"),
   eventoRegraSelect: document.getElementById("eventoRegraSelect"),
   providenciaRegraSelect: document.getElementById("providenciaRegraSelect"),
@@ -45,6 +64,12 @@ const els = {
   observacaoInput: document.getElementById("observacaoInput"),
   salvarRegraBtn: document.getElementById("salvarRegraBtn"),
   tabelaRegrasBody: document.getElementById("tabelaRegrasBody"),
+  eventosResumo: document.getElementById("eventosResumo"),
+  eventosPagination: document.getElementById("eventosPagination"),
+  mapeamentosResumo: document.getElementById("mapeamentosResumo"),
+  mapeamentosPagination: document.getElementById("mapeamentosPagination"),
+  regrasResumo: document.getElementById("regrasResumo"),
+  regrasPagination: document.getElementById("regrasPagination"),
 };
 
 function authFetch(url, options = {}) {
@@ -59,12 +84,27 @@ function authFetch(url, options = {}) {
 
 document.addEventListener("DOMContentLoaded", () => {
   bindEvents();
-  carregarEventos();
-  carregarEventosParaMapeamento();
-  carregarProvidenciasParaRegras();
-  carregarMapeamentos();
-  togglePrazoFields();
-  setRegrasTableMessage("Selecione um evento para visualizar as regras.");
+  const hasEventos = Boolean(els.tabelaBody);
+  const hasMapeamentos = Boolean(els.tabelaMapeamentosBody);
+  const hasRegras = Boolean(els.tabelaRegrasBody);
+
+  if (hasEventos) {
+    carregarEventos();
+  }
+
+  if (hasMapeamentos || hasRegras) {
+    carregarEventosParaMapeamento();
+  }
+
+  if (hasMapeamentos) {
+    carregarMapeamentos();
+  }
+
+  if (hasRegras) {
+    carregarProvidenciasParaRegras();
+    carregarRegras();
+    togglePrazoFields();
+  }
 });
 
 function bindEvents() {
@@ -72,17 +112,23 @@ function bindEvents() {
   els.btnNovo?.addEventListener("click", abrirModalCriar);
   els.salvarBtn?.addEventListener("click", salvarEvento);
   els.salvarMapeamentoBtn?.addEventListener("click", salvarMapeamento);
+  els.mappingBtnBuscar?.addEventListener("click", aplicarFiltroMapeamentos);
+  els.btnNovoMapeamento?.addEventListener("click", abrirModalMapeamentoCriar);
   els.salvarRegraBtn?.addEventListener("click", salvarRegra);
+  els.btnBuscarRegras?.addEventListener("click", aplicarFiltroRegras);
+  els.btnNovaRegra?.addEventListener("click", abrirModalRegraCriar);
   els.geraPrazoInput?.addEventListener("change", togglePrazoFields);
-  els.eventoRegraSelect?.addEventListener("change", () => {
-    carregarRegras();
-    resetRegraForm();
-  });
 
   els.filtroStatus?.addEventListener("change", carregarEventos);
   els.busca?.addEventListener("keyup", (event) => {
     if (event.key === "Enter") carregarEventos();
   });
+  els.mappingBusca?.addEventListener("keyup", (event) => {
+    if (event.key === "Enter") aplicarFiltroMapeamentos();
+  });
+  els.regrasBuscaEvento?.addEventListener("change", aplicarFiltroRegras);
+  els.regrasBuscaProvidencia?.addEventListener("change", aplicarFiltroRegras);
+  els.regrasBuscaPrazo?.addEventListener("change", aplicarFiltroRegras);
 
   els.tabelaBody?.addEventListener("click", (event) => {
     const actionBtn = event.target.closest("[data-action]");
@@ -98,10 +144,19 @@ function bindEvents() {
   els.tabelaMapeamentosBody?.addEventListener("click", (event) => {
     const actionBtn = event.target.closest("[data-action]");
     if (!actionBtn) return;
-    if (actionBtn.dataset.action !== "delete") return;
     const id = actionBtn.dataset.id;
     if (!id) return;
-    removerMapeamento(id);
+    if (actionBtn.dataset.action === "delete") {
+      removerMapeamento(id);
+      return;
+    }
+    if (actionBtn.dataset.action === "edit") {
+      const mapeamento = state.mapeamentos.find(
+        (item) => String(item.id) === String(id)
+      );
+      if (!mapeamento) return;
+      abrirModalMapeamentoEditar(mapeamento);
+    }
   });
 
   els.tabelaRegrasBody?.addEventListener("click", (event) => {
@@ -117,6 +172,29 @@ function bindEvents() {
       removerRegra(id);
     }
   });
+
+  registerModalCleanup(els.modalEl);
+  registerModalCleanup(els.modalMapeamentoEl);
+  registerModalCleanup(els.modalRegraEl);
+}
+
+function registerModalCleanup(modalEl) {
+  if (!modalEl) return;
+  modalEl.addEventListener("hidden.bs.modal", () => {
+    const modalInstance = bootstrap.Modal.getInstance(modalEl);
+    if (modalInstance) modalInstance.dispose();
+    cleanupModalState();
+  });
+}
+
+function cleanupModalState() {
+  const anyModalOpen = document.querySelectorAll(".modal.show").length > 0;
+  if (!anyModalOpen) {
+    document.body.classList.remove("modal-open");
+    document.body.style.removeProperty("overflow");
+    document.body.style.removeProperty("padding-right");
+    document.querySelectorAll(".modal-backdrop").forEach((el) => el.remove());
+  }
 }
 
 function setTableMessage(text) {
@@ -171,6 +249,7 @@ function showRegrasAlert(type, message) {
 }
 
 async function carregarEventos() {
+  pagination.eventos.page = 1;
   setTableMessage("Carregando eventos...");
   showAlert("info", "Buscando eventos...");
 
@@ -202,8 +281,13 @@ async function carregarEventos() {
 }
 
 async function carregarEventosParaMapeamento() {
-  if (!els.eventoMapeamentoSelect) return;
-  els.eventoMapeamentoSelect.innerHTML = `<option value="">Carregando...</option>`;
+  if (!els.eventoMapeamentoSelect && !els.eventoRegraSelect) return;
+  if (els.eventoMapeamentoSelect) {
+    els.eventoMapeamentoSelect.innerHTML = `<option value="">Carregando...</option>`;
+  }
+  if (els.eventoRegraSelect) {
+    els.eventoRegraSelect.innerHTML = `<option value="">Carregando...</option>`;
+  }
 
   try {
     const response = await authFetch(API_BASE);
@@ -217,12 +301,14 @@ async function carregarEventosParaMapeamento() {
     state.eventosParaRegras = [...state.eventosParaMapeamento];
     renderEventosSelect();
     renderEventosRegraSelect();
+    renderEventosRegrasFiltro();
   } catch (error) {
     console.error("[eventos] erro ao carregar eventos para mapeamento", error);
     state.eventosParaMapeamento = [];
     state.eventosParaRegras = [];
     renderEventosSelect();
     renderEventosRegraSelect();
+    renderEventosRegrasFiltro();
     showMappingAlert("danger", error.message);
   }
 }
@@ -269,15 +355,46 @@ function renderEventosRegraSelect() {
   `;
 }
 
+function renderEventosRegrasFiltro() {
+  if (!els.regrasBuscaEvento) return;
+  if (!state.eventosParaRegras.length) {
+    els.regrasBuscaEvento.innerHTML =
+      '<option value="">Nenhum evento disponível</option>';
+    return;
+  }
+
+  els.regrasBuscaEvento.innerHTML = `
+    <option value="">Todos</option>
+    ${state.eventosParaRegras
+      .map(
+        (evento) => `
+      <option value="${evento.id}">${evento.nome || "-"}</option>
+    `
+      )
+      .join("")}
+  `;
+}
+
 function renderTable() {
   if (!els.tabelaBody) return;
 
   if (!state.eventos.length) {
     setTableMessage("Nenhum evento encontrado com os filtros atuais.");
+    updateEventosPagination(0);
     return;
   }
 
-  els.tabelaBody.innerHTML = state.eventos
+  const { pageItems, totalItems, totalPages } = paginateItems(
+    state.eventos,
+    pagination.eventos
+  );
+
+  if (!pageItems.length) {
+    pagination.eventos.page = 1;
+    return renderTable();
+  }
+
+  els.tabelaBody.innerHTML = pageItems
     .map((evento) => {
       const statusLabel = evento.ativo ? "Ativo" : "Inativo";
       const badgeClass = evento.ativo ? "bg-success" : "bg-danger";
@@ -296,6 +413,8 @@ function renderTable() {
       `;
     })
     .join("");
+
+  updateEventosPagination(totalItems, totalPages);
 }
 
 function setMappingTableMessage(text) {
@@ -319,12 +438,29 @@ function setRegrasTableMessage(text) {
 function renderMapeamentosTable() {
   if (!els.tabelaMapeamentosBody) return;
 
-  if (!state.mapeamentos.length) {
-    setMappingTableMessage("Nenhum mapeamento cadastrado.");
+  const filtered = filterMapeamentos();
+  if (!filtered.length) {
+    const hasData = Boolean(state.mapeamentos.length);
+    setMappingTableMessage(
+      hasData
+        ? "Nenhum mapeamento encontrado com os filtros atuais."
+        : "Nenhum mapeamento cadastrado."
+    );
+    updateMapeamentosPagination(0);
     return;
   }
 
-  els.tabelaMapeamentosBody.innerHTML = state.mapeamentos
+  const { pageItems, totalItems, totalPages } = paginateItems(
+    filtered,
+    pagination.mapeamentos
+  );
+
+  if (!pageItems.length) {
+    pagination.mapeamentos.page = 1;
+    return renderMapeamentosTable();
+  }
+
+  els.tabelaMapeamentosBody.innerHTML = pageItems
     .map((mapeamento) => {
       const tipoMatchLabel = mapeamento.tipo_match === "contem" ? "Contém" : "Exato";
       const eventoNome = mapeamento.evento_processual?.nome || "-";
@@ -335,6 +471,9 @@ function renderMapeamentosTable() {
           <td>${tipoMatchLabel}</td>
           <td>${eventoNome}</td>
           <td class="text-end">
+            <button class="btn btn-sm btn-outline-secondary" data-action="edit" data-id="${mapeamento.id}">
+              <i class="fas fa-pen"></i>
+            </button>
             <button class="btn btn-sm btn-outline-danger" data-action="delete" data-id="${mapeamento.id}">
               <i class="fas fa-trash"></i>
             </button>
@@ -343,17 +482,36 @@ function renderMapeamentosTable() {
       `;
     })
     .join("");
+
+  updateMapeamentosPagination(totalItems, totalPages);
 }
 
 function renderRegrasTable() {
   if (!els.tabelaRegrasBody) return;
 
-  if (!state.regras.length) {
-    setRegrasTableMessage("Nenhuma regra cadastrada para o evento selecionado.");
+  const filtered = filterRegras();
+  if (!filtered.length) {
+    const hasData = Boolean(state.regras.length);
+    setRegrasTableMessage(
+      hasData
+        ? "Nenhuma regra encontrada com os filtros atuais."
+        : "Nenhuma regra cadastrada."
+    );
+    updateRegrasPagination(0);
     return;
   }
 
-  els.tabelaRegrasBody.innerHTML = state.regras
+  const { pageItems, totalItems, totalPages } = paginateItems(
+    filtered,
+    pagination.regras
+  );
+
+  if (!pageItems.length) {
+    pagination.regras.page = 1;
+    return renderRegrasTable();
+  }
+
+  els.tabelaRegrasBody.innerHTML = pageItems
     .map((regra) => {
       const eventoNome = regra.evento_processual?.nome || "-";
       const providenciaNome = regra.providencia_juridica?.nome || "-";
@@ -382,6 +540,188 @@ function renderRegrasTable() {
       `;
     })
     .join("");
+
+  updateRegrasPagination(totalItems, totalPages);
+}
+
+function aplicarFiltroRegras() {
+  pagination.regras.page = 1;
+  renderRegrasTable();
+}
+
+function filterRegras() {
+  const eventoId = normalizeSearchText(els.regrasBuscaEvento?.value);
+  const providenciaId = normalizeSearchText(els.regrasBuscaProvidencia?.value);
+  const prazoFilter = normalizeSearchText(els.regrasBuscaPrazo?.value);
+
+  return state.regras.filter((regra) => {
+    if (eventoId && String(regra.evento_id) !== eventoId) return false;
+    if (providenciaId && String(regra.providencia_id) !== providenciaId)
+      return false;
+    if (prazoFilter === "sim" && !regra.gera_prazo) return false;
+    if (prazoFilter === "nao" && regra.gera_prazo) return false;
+    return true;
+  });
+}
+
+function paginateItems(items, config) {
+  const totalItems = items.length;
+  const pageSize = config.pageSize;
+  const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
+  const currentPage = Math.min(Math.max(1, config.page), totalPages);
+  const startIndex = (currentPage - 1) * pageSize;
+  const endIndex = startIndex + pageSize;
+  const pageItems = items.slice(startIndex, endIndex);
+
+  config.page = currentPage;
+
+  return { pageItems, totalItems, totalPages, startIndex, endIndex };
+}
+
+function updateEventosPagination(totalItems, totalPages = 1) {
+  updatePagination({
+    container: els.eventosPagination,
+    resumoEl: els.eventosResumo,
+    totalItems,
+    totalPages,
+    page: pagination.eventos.page,
+    pageSize: pagination.eventos.pageSize,
+    onPageChange: (page) => {
+      pagination.eventos.page = page;
+      renderTable();
+    },
+  });
+}
+
+function updateMapeamentosPagination(totalItems, totalPages = 1) {
+  updatePagination({
+    container: els.mapeamentosPagination,
+    resumoEl: els.mapeamentosResumo,
+    totalItems,
+    totalPages,
+    page: pagination.mapeamentos.page,
+    pageSize: pagination.mapeamentos.pageSize,
+    onPageChange: (page) => {
+      pagination.mapeamentos.page = page;
+      renderMapeamentosTable();
+    },
+  });
+}
+
+function updateRegrasPagination(totalItems, totalPages = 1) {
+  updatePagination({
+    container: els.regrasPagination,
+    resumoEl: els.regrasResumo,
+    totalItems,
+    totalPages,
+    page: pagination.regras.page,
+    pageSize: pagination.regras.pageSize,
+    onPageChange: (page) => {
+      pagination.regras.page = page;
+      renderRegrasTable();
+    },
+  });
+}
+
+function updatePagination({
+  container,
+  resumoEl,
+  totalItems,
+  totalPages,
+  page,
+  pageSize,
+  onPageChange,
+}) {
+  if (!container || !resumoEl) return;
+
+  if (!totalItems) {
+    container.innerHTML = "";
+    resumoEl.textContent = "";
+    return;
+  }
+
+  const startItem = (page - 1) * pageSize + 1;
+  const endItem = Math.min(page * pageSize, totalItems);
+  resumoEl.textContent = `Exibindo ${startItem}-${endItem} de ${totalItems}`;
+
+  const maxButtons = 5;
+  let startPage = Math.max(1, page - Math.floor(maxButtons / 2));
+  let endPage = Math.min(totalPages, startPage + maxButtons - 1);
+  if (endPage - startPage + 1 < maxButtons) {
+    startPage = Math.max(1, endPage - maxButtons + 1);
+  }
+
+  const buttons = [];
+  buttons.push(
+    buildPaginationItem("«", page - 1, page === 1, false)
+  );
+  for (let p = startPage; p <= endPage; p += 1) {
+    buttons.push(buildPaginationItem(String(p), p, false, p === page));
+  }
+  buttons.push(
+    buildPaginationItem("»", page + 1, page === totalPages, false)
+  );
+
+  container.innerHTML = buttons.join("");
+
+  container.querySelectorAll("button[data-page]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const targetPage = Number(button.dataset.page || "1");
+      if (Number.isNaN(targetPage)) return;
+      onPageChange(targetPage);
+    });
+  });
+}
+
+function buildPaginationItem(label, page, disabled, active) {
+  const btnClass = ["page-link"];
+  const liClass = ["page-item"];
+  if (disabled) liClass.push("disabled");
+  if (active) liClass.push("active");
+
+  return `
+    <li class="${liClass.join(" ")}">
+      <button class="${btnClass.join(" ")}" data-page="${page}" ${
+    disabled ? "disabled" : ""
+  }>${label}</button>
+    </li>
+  `;
+}
+
+function aplicarFiltroMapeamentos() {
+  pagination.mapeamentos.page = 1;
+  renderMapeamentosTable();
+}
+
+function filterMapeamentos() {
+  const term = normalizeSearchText(els.mappingBusca?.value);
+  if (!term) return state.mapeamentos;
+  return state.mapeamentos.filter((mapeamento) => {
+    const andamento = normalizeSearchText(mapeamento.andamento_descricao);
+    const evento = normalizeSearchText(mapeamento.evento_processual?.nome);
+    const tipo = normalizeSearchText(mapeamento.tipo_match);
+    return (
+      andamento.includes(term) || evento.includes(term) || tipo.includes(term)
+    );
+  });
+}
+
+function normalizeSearchText(value) {
+  if (value === null || value === undefined) return "";
+  return String(value).trim().toLowerCase();
+}
+
+function abrirModalRegraCriar() {
+  if (!els.modalRegraEl) return;
+  if (!state.eventosParaRegras.length) {
+    carregarEventosParaMapeamento();
+  }
+  if (!state.providencias.length) {
+    carregarProvidenciasParaRegras();
+  }
+  if (els.modalRegraTitle) els.modalRegraTitle.textContent = "Nova Regra";
+  resetRegraForm();
+  new bootstrap.Modal(els.modalRegraEl).show();
 }
 
 function togglePrazoFields() {
@@ -392,6 +732,42 @@ function togglePrazoFields() {
     if (els.prazoDiasInput) els.prazoDiasInput.value = "";
     if (els.tipoPrazoSelect) els.tipoPrazoSelect.value = "";
   }
+}
+
+function abrirModalMapeamentoCriar() {
+  if (!els.modalMapeamentoEl) return;
+  if (!state.eventosParaMapeamento.length) {
+    carregarEventosParaMapeamento();
+  }
+  if (els.modalMapeamentoTitle) {
+    els.modalMapeamentoTitle.textContent = "Novo Mapeamento";
+  }
+  if (els.mapeamentoId) els.mapeamentoId.value = "";
+  if (els.andamentoInput) els.andamentoInput.value = "";
+  if (els.eventoMapeamentoSelect) els.eventoMapeamentoSelect.value = "";
+  if (els.tipoMatchSelect) els.tipoMatchSelect.value = "exato";
+  new bootstrap.Modal(els.modalMapeamentoEl).show();
+}
+
+function abrirModalMapeamentoEditar(mapeamento) {
+  if (!els.modalMapeamentoEl) return;
+  if (!state.eventosParaMapeamento.length) {
+    carregarEventosParaMapeamento();
+  }
+  if (els.modalMapeamentoTitle) {
+    els.modalMapeamentoTitle.textContent = "Editar Mapeamento";
+  }
+  if (els.mapeamentoId) els.mapeamentoId.value = mapeamento.id;
+  if (els.andamentoInput) {
+    els.andamentoInput.value = mapeamento.andamento_descricao || "";
+  }
+  if (els.eventoMapeamentoSelect) {
+    els.eventoMapeamentoSelect.value = mapeamento.evento_id || "";
+  }
+  if (els.tipoMatchSelect) {
+    els.tipoMatchSelect.value = mapeamento.tipo_match || "exato";
+  }
+  new bootstrap.Modal(els.modalMapeamentoEl).show();
 }
 
 function abrirModalCriar() {
@@ -457,6 +833,7 @@ async function salvarEvento() {
 }
 
 async function carregarMapeamentos() {
+  pagination.mapeamentos.page = 1;
   setMappingTableMessage("Carregando mapeamentos...");
   showMappingAlert("info", "Buscando mapeamentos...");
 
@@ -480,6 +857,7 @@ async function carregarMapeamentos() {
 }
 
 async function salvarMapeamento() {
+  const mapeamentoId = (els.mapeamentoId?.value || "").trim();
   const andamentoDescricao = (els.andamentoInput?.value || "").trim();
   const eventoId = (els.eventoMapeamentoSelect?.value || "").trim();
   const tipoMatch = (els.tipoMatchSelect?.value || "").trim();
@@ -500,9 +878,12 @@ async function salvarMapeamento() {
     tipo_match: tipoMatch || "exato",
   };
 
+  const method = mapeamentoId ? "PUT" : "POST";
+  const url = mapeamentoId ? `${MAPPING_API_BASE}/${mapeamentoId}` : MAPPING_API_BASE;
+
   try {
-    const response = await authFetch(MAPPING_API_BASE, {
-      method: "POST",
+    const response = await authFetch(url, {
+      method,
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     });
@@ -512,10 +893,15 @@ async function salvarMapeamento() {
       throw new Error(data?.error || "Erro ao salvar mapeamento.");
     }
 
+    bootstrap.Modal.getInstance(els.modalMapeamentoEl)?.hide();
+    if (els.mapeamentoId) els.mapeamentoId.value = "";
     if (els.andamentoInput) els.andamentoInput.value = "";
     if (els.eventoMapeamentoSelect) els.eventoMapeamentoSelect.value = "";
     if (els.tipoMatchSelect) els.tipoMatchSelect.value = "exato";
-    showMappingAlert("success", "Mapeamento salvo com sucesso.");
+    showMappingAlert(
+      "success",
+      mapeamentoId ? "Mapeamento atualizado com sucesso." : "Mapeamento salvo com sucesso."
+    );
     carregarMapeamentos();
   } catch (error) {
     console.error("[eventos] erro ao salvar mapeamento", error);
@@ -559,10 +945,12 @@ async function carregarProvidenciasParaRegras() {
 
     state.providencias = Array.isArray(data) ? data : [];
     renderProvidenciasSelect();
+    renderProvidenciasFiltro();
   } catch (error) {
     console.error("[eventos] erro ao carregar providencias", error);
     state.providencias = [];
     renderProvidenciasSelect();
+    renderProvidenciasFiltro();
     showRegrasAlert("danger", error.message);
   }
 }
@@ -588,22 +976,33 @@ function renderProvidenciasSelect() {
   `;
 }
 
-async function carregarRegras() {
-  const eventoId = (els.eventoRegraSelect?.value || "").trim();
-  if (!eventoId) {
-    state.regras = [];
-    setRegrasTableMessage("Selecione um evento para visualizar as regras.");
+function renderProvidenciasFiltro() {
+  if (!els.regrasBuscaProvidencia) return;
+  if (!state.providencias.length) {
+    els.regrasBuscaProvidencia.innerHTML =
+      '<option value="">Nenhuma providência disponível</option>';
     return;
   }
 
+  els.regrasBuscaProvidencia.innerHTML = `
+    <option value="">Todas</option>
+    ${state.providencias
+      .map(
+        (providencia) => `
+      <option value="${providencia.id}">${providencia.nome || "-"}</option>
+    `
+      )
+      .join("")}
+  `;
+}
+
+async function carregarRegras() {
+  pagination.regras.page = 1;
   setRegrasTableMessage("Carregando regras...");
   showRegrasAlert("info", "Buscando regras...");
 
-  const params = new URLSearchParams();
-  params.set("eventoId", eventoId);
-
   try {
-    const response = await authFetch(`${RULES_API_BASE}?${params.toString()}`);
+    const response = await authFetch(RULES_API_BASE);
     const data = await response.json().catch(() => []);
 
     if (!response.ok) {
@@ -623,6 +1022,7 @@ async function carregarRegras() {
 
 function resetRegraForm() {
   if (els.regraId) els.regraId.value = "";
+  if (els.eventoRegraSelect) els.eventoRegraSelect.value = "";
   if (els.providenciaRegraSelect) els.providenciaRegraSelect.value = "";
   if (els.prioridadeInput) els.prioridadeInput.value = "1";
   if (els.geraPrazoInput) els.geraPrazoInput.checked = false;
@@ -647,6 +1047,10 @@ function preencherFormularioRegra(regra) {
   if (els.observacaoInput)
     els.observacaoInput.value = regra.observacao_juridica || "";
   togglePrazoFields();
+  if (els.modalRegraTitle) els.modalRegraTitle.textContent = "Editar Regra";
+  if (els.modalRegraEl) {
+    new bootstrap.Modal(els.modalRegraEl).show();
+  }
 }
 
 async function salvarRegra() {
@@ -701,7 +1105,11 @@ async function salvarRegra() {
       throw new Error(data?.error || "Erro ao salvar regra.");
     }
 
-    showRegrasAlert("success", "Regra salva com sucesso.");
+    bootstrap.Modal.getInstance(els.modalRegraEl)?.hide();
+    showRegrasAlert(
+      "success",
+      regraId ? "Regra atualizada com sucesso." : "Regra salva com sucesso."
+    );
     resetRegraForm();
     carregarRegras();
   } catch (error) {

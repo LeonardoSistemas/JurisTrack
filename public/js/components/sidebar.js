@@ -99,7 +99,13 @@ class AppSidebar extends HTMLElement {
                 <div class="collapse" id="collapseConfiguracoesJuridicas">
                     <div class="nav flex-column mt-1">
                         <a class="nav-link" href="/eventos">
-                            <i class="fas fa-calendar-check"></i> Eventos e Mapeamentos
+                            <i class="fas fa-calendar-check"></i> Eventos Processuais
+                        </a>
+                        <a class="nav-link" href="/eventos-mapeamentos">
+                            <i class="fas fa-link"></i> Mapeamentos de Andamentos
+                        </a>
+                        <a class="nav-link" href="/eventos-regras">
+                            <i class="fas fa-sitemap"></i> Regras Evento → Providência
                         </a>
                         <a class="nav-link" href="/providencias">
                             <i class="fas fa-clipboard-list"></i> Providências e Checklists
@@ -187,6 +193,10 @@ class AppSidebar extends HTMLElement {
             this.setActive('/processos');
         } else if (currentPath.includes('/dashboard') || currentPath.includes('dashboard.html')) {
             this.setActive('/dashboard');
+        } else if (currentPath.includes('/eventos-mapeamentos')) {
+            this.setActive('/eventos-mapeamentos');
+        } else if (currentPath.includes('/eventos-regras')) {
+            this.setActive('/eventos-regras');
         }
         // Add more specific logic if the generic loop didn't catch it
     }
