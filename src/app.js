@@ -137,6 +137,10 @@ app.get("/eventos", (req, res) => {
   res.sendFile(path.join(__dirname, "../public", "html", "eventos.html"));
 });
 
+app.get("/providencias", (req, res) => {
+  res.sendFile(path.join(__dirname, "../public", "html", "providencias.html"));
+});
+
 app.get("/estados", (req, res) => {
   res.sendFile(
     path.join(__dirname,"../public", "html", "estados.html"));
