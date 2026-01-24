@@ -80,6 +80,65 @@
             </table>
           </div>
         </div>
+
+        <div class="card card-custom p-4">
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <div>
+              <h4>
+                <i class="fas fa-link me-2 text-primary"></i>Mapeamento de Andamentos
+              </h4>
+              <p class="text-muted mb-0">
+                Associe textos de andamentos dos tribunais aos eventos internos
+              </p>
+            </div>
+          </div>
+
+          <div id="mappingAlertArea" class="mb-3"></div>
+
+          <div class="row g-2 align-items-end mb-3">
+            <div class="col-12 col-lg-5">
+              <label class="form-label">Descrição do Andamento</label>
+              <input
+                type="text"
+                id="andamentoInput"
+                class="form-control"
+                placeholder="Ex: Designada Audiência de Instrução"
+              />
+            </div>
+            <div class="col-12 col-md-3">
+              <label class="form-label">Evento</label>
+              <select id="eventoMapeamentoSelect" class="form-select">
+                <option value="">Selecione...</option>
+              </select>
+            </div>
+            <div class="col-12 col-md-2">
+              <label class="form-label">Tipo de Match</label>
+              <select id="tipoMatchSelect" class="form-select">
+                <option value="exato">Exato</option>
+                <option value="contem">Contém</option>
+              </select>
+            </div>
+            <div class="col-12 col-md-2 d-grid">
+              <button class="btn btn-primary" id="salvarMapeamentoBtn">
+                <i class="fas fa-plus me-1"></i>Adicionar
+              </button>
+            </div>
+          </div>
+
+          <div class="table-responsive bg-white rounded">
+            <table class="table table-hover align-middle mb-0">
+              <thead class="table-light">
+                <tr>
+                  <th>Andamento</th>
+                  <th>Tipo</th>
+                  <th>Evento</th>
+                  <th class="text-end">Ações</th>
+                </tr>
+              </thead>
+              <tbody id="tabelaMapeamentosBody"></tbody>
+            </table>
+          </div>
+        </div>
       </div>
     </div>
 

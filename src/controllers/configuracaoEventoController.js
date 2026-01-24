@@ -73,12 +73,13 @@ export const listMappings = async (req, res) => {
     });
     return res.status(200).json(mappings);
   } catch (error) {
+    const status = error.statusCode || error.status || 500;
     logError("config-event.controller.mappings_error", "Failed to list mappings.", {
       error,
       tenantId: req.tenantId,
       userId: req.user?.id,
     });
-    return res.status(500).json({ error: "Internal server error." });
+    return res.status(status).json({ error: error.message || "Internal server error." });
   }
 };
 
@@ -92,6 +93,7 @@ export const createMapping = async (req, res) => {
     });
     return res.status(200).json(result);
   } catch (error) {
+    const status = error.statusCode || error.status || 500;
     logError(
       "config-event.controller.mappings_create_error",
       "Failed to create mapping.",
@@ -101,6 +103,30 @@ export const createMapping = async (req, res) => {
         userId: req.user?.id,
       }
     );
-    return res.status(500).json({ error: "Internal server error." });
+    return res.status(status).json({ error: error.message || "Internal server error." });
+  }
+};
+
+export const deleteMapping = async (req, res) => {
+  if (!ensureTenantAuthorization(req, res)) return;
+
+  try {
+    const result = await configuracaoEventoService.deleteMapping({
+      tenantId: req.tenantId,
+      mappingId: req.params?.id,
+    });
+    return res.status(200).json(result);
+  } catch (error) {
+    const status = error.statusCode || error.status || 500;
+    logError(
+      "config-event.controller.mappings_delete_error",
+      "Failed to delete mapping.",
+      {
+        error,
+        tenantId: req.tenantId,
+        userId: req.user?.id,
+      }
+    );
+    return res.status(status).json({ error: error.message || "Internal server error." });
   }
 };
