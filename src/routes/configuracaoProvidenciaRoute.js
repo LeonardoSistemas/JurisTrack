@@ -5,6 +5,7 @@ const router = Router();
 
 router.get("/providencias", configuracaoProvidenciaController.listProvidencias);
 router.post("/providencias", configuracaoProvidenciaController.createProvidencia);
+router.put("/providencias/:id", configuracaoProvidenciaController.updateProvidencia);
 
 router.get(
   "/providencias/:id/checklist",

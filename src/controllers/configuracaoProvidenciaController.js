@@ -8,9 +8,12 @@ export const listProvidencias = async (req, res) => {
   try {
     const providencias = await configuracaoProvidenciaService.listProvidencias({
       tenantId: req.tenantId,
+      search: req.query?.busca,
+      status: req.query?.status,
     });
     return res.status(200).json(providencias);
   } catch (error) {
+    const status = error.statusCode || error.status || 500;
     logError(
       "config-providencia.controller.list_error",
       "Failed to list providencias.",
@@ -20,7 +23,7 @@ export const listProvidencias = async (req, res) => {
         userId: req.user?.id,
       }
     );
-    return res.status(500).json({ error: "Internal server error." });
+    return res.status(status).json({ error: error.message || "Internal server error." });
   }
 };
 
@@ -34,6 +37,7 @@ export const createProvidencia = async (req, res) => {
     });
     return res.status(200).json(result);
   } catch (error) {
+    const status = error.statusCode || error.status || 500;
     logError(
       "config-providencia.controller.create_error",
       "Failed to create providencia.",
@@ -43,7 +47,32 @@ export const createProvidencia = async (req, res) => {
         userId: req.user?.id,
       }
     );
-    return res.status(500).json({ error: "Internal server error." });
+    return res.status(status).json({ error: error.message || "Internal server error." });
+  }
+};
+
+export const updateProvidencia = async (req, res) => {
+  if (!ensureTenantAuthorization(req, res)) return;
+
+  try {
+    const result = await configuracaoProvidenciaService.updateProvidencia({
+      tenantId: req.tenantId,
+      providenciaId: req.params?.id,
+      payload: req.body,
+    });
+    return res.status(200).json(result);
+  } catch (error) {
+    const status = error.statusCode || error.status || 500;
+    logError(
+      "config-providencia.controller.update_error",
+      "Failed to update providencia.",
+      {
+        error,
+        tenantId: req.tenantId,
+        userId: req.user?.id,
+      }
+    );
+    return res.status(status).json({ error: error.message || "Internal server error." });
   }
 };
 
@@ -57,6 +86,7 @@ export const listChecklistItems = async (req, res) => {
     });
     return res.status(200).json(items);
   } catch (error) {
+    const status = error.statusCode || error.status || 500;
     logError(
       "config-providencia.controller.checklist_list_error",
       "Failed to list checklist items.",
@@ -66,7 +96,7 @@ export const listChecklistItems = async (req, res) => {
         userId: req.user?.id,
       }
     );
-    return res.status(500).json({ error: "Internal server error." });
+    return res.status(status).json({ error: error.message || "Internal server error." });
   }
 };
 
@@ -81,6 +111,7 @@ export const createChecklistItem = async (req, res) => {
     });
     return res.status(200).json(result);
   } catch (error) {
+    const status = error.statusCode || error.status || 500;
     logError(
       "config-providencia.controller.checklist_create_error",
       "Failed to create checklist item.",
@@ -90,7 +121,7 @@ export const createChecklistItem = async (req, res) => {
         userId: req.user?.id,
       }
     );
-    return res.status(500).json({ error: "Internal server error." });
+    return res.status(status).json({ error: error.message || "Internal server error." });
   }
 };
 
@@ -105,6 +136,7 @@ export const updateChecklistItem = async (req, res) => {
     });
     return res.status(200).json(result);
   } catch (error) {
+    const status = error.statusCode || error.status || 500;
     logError(
       "config-providencia.controller.checklist_update_error",
       "Failed to update checklist item.",
@@ -114,7 +146,7 @@ export const updateChecklistItem = async (req, res) => {
         userId: req.user?.id,
       }
     );
-    return res.status(500).json({ error: "Internal server error." });
+    return res.status(status).json({ error: error.message || "Internal server error." });
   }
 };
 
@@ -128,6 +160,7 @@ export const deleteChecklistItem = async (req, res) => {
     });
     return res.status(200).json(result);
   } catch (error) {
+    const status = error.statusCode || error.status || 500;
     logError(
       "config-providencia.controller.checklist_delete_error",
       "Failed to delete checklist item.",
@@ -137,7 +170,7 @@ export const deleteChecklistItem = async (req, res) => {
         userId: req.user?.id,
       }
     );
-    return res.status(500).json({ error: "Internal server error." });
+    return res.status(status).json({ error: error.message || "Internal server error." });
   }
 };
 
@@ -151,6 +184,7 @@ export const listProvidenciaModels = async (req, res) => {
     });
     return res.status(200).json(models);
   } catch (error) {
+    const status = error.statusCode || error.status || 500;
     logError(
       "config-providencia.controller.models_list_error",
       "Failed to list providencia models.",
@@ -160,7 +194,7 @@ export const listProvidenciaModels = async (req, res) => {
         userId: req.user?.id,
       }
     );
-    return res.status(500).json({ error: "Internal server error." });
+    return res.status(status).json({ error: error.message || "Internal server error." });
   }
 };
 
@@ -175,6 +209,7 @@ export const addProvidenciaModel = async (req, res) => {
     });
     return res.status(200).json(result);
   } catch (error) {
+    const status = error.statusCode || error.status || 500;
     logError(
       "config-providencia.controller.models_add_error",
       "Failed to add providencia model.",
@@ -184,7 +219,7 @@ export const addProvidenciaModel = async (req, res) => {
         userId: req.user?.id,
       }
     );
-    return res.status(500).json({ error: "Internal server error." });
+    return res.status(status).json({ error: error.message || "Internal server error." });
   }
 };
 
@@ -199,6 +234,7 @@ export const removeProvidenciaModel = async (req, res) => {
     });
     return res.status(200).json(result);
   } catch (error) {
+    const status = error.statusCode || error.status || 500;
     logError(
       "config-providencia.controller.models_remove_error",
       "Failed to remove providencia model.",
@@ -208,6 +244,6 @@ export const removeProvidenciaModel = async (req, res) => {
         userId: req.user?.id,
       }
     );
-    return res.status(500).json({ error: "Internal server error." });
+    return res.status(status).json({ error: error.message || "Internal server error." });
   }
 };
