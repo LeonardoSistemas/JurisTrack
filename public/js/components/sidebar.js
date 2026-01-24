@@ -87,6 +87,26 @@ class AppSidebar extends HTMLElement {
                     </div>
                 </div>
             </div>
+            
+            <div class="mt-4">
+                <a class="d-flex justify-content-between align-items-center text-muted text-uppercase fw-bold px-2 text-decoration-none" 
+                   data-bs-toggle="collapse" href="#collapseConfiguracoesJuridicas" role="button" aria-expanded="false" aria-controls="collapseConfiguracoesJuridicas"
+                   style="font-size: 0.75rem;">
+                   <span>Configurações Jurídicas</span>
+                   <i class="fas fa-chevron-down ms-1" style="font-size: 0.65rem;"></i>
+                </a>
+                
+                <div class="collapse" id="collapseConfiguracoesJuridicas">
+                    <div class="nav flex-column mt-1">
+                        <a class="nav-link" href="/eventos">
+                            <i class="fas fa-calendar-check"></i> Eventos e Mapeamentos
+                        </a>
+                        <a class="nav-link" href="/providencias">
+                            <i class="fas fa-clipboard-list"></i> Providências e Checklists
+                        </a>
+                    </div>
+                </div>
+            </div>
         </nav>
         
         <div class="mt-auto pt-3 border-top">
