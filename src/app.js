@@ -31,6 +31,8 @@ import publicacoesRoutes from "./routes/publicacoesRoutes.js";
 import conciliacaoRoute from "./routes/conciliacaoRoute.js";
 import feriadoRoute from "./routes/feriadoRoute.js"; 
 import eventoProvidenciaRoute from "./routes/eventoProvidenciaRoute.js";
+import configuracaoEventoRoute from "./routes/configuracaoEventoRoute.js";
+import configuracaoProvidenciaRoute from "./routes/configuracaoProvidenciaRoute.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -69,6 +71,8 @@ app.use("/api/internal", internalRoute);
 app.use("/api", tenantContextMiddleware);
 app.use("/api/dashboard", dashboardRoute);
 app.use("/api/analise", eventoProvidenciaRoute);
+app.use("/api/config", configuracaoEventoRoute);
+app.use("/api/config", configuracaoProvidenciaRoute);
 app.use("/api/processos", processoRoute);
 app.use("/api/locais", locaisRoute);
 app.use("/api/auxiliares", auxiliarRouter);
