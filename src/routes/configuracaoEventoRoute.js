@@ -14,4 +14,15 @@ router.delete(
   configuracaoEventoController.deleteMapping
 );
 
+router.get("/eventos/providencias", configuracaoEventoController.listEventoProvidencias);
+router.post("/eventos/providencias", configuracaoEventoController.createEventoProvidencia);
+router.put(
+  "/eventos/providencias/:id",
+  configuracaoEventoController.updateEventoProvidencia
+);
+router.delete(
+  "/eventos/providencias/:id",
+  configuracaoEventoController.deleteEventoProvidencia
+);
+
 export default router;

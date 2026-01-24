@@ -130,3 +130,100 @@ export const deleteMapping = async (req, res) => {
     return res.status(status).json({ error: error.message || "Internal server error." });
   }
 };
+
+export const listEventoProvidencias = async (req, res) => {
+  if (!ensureTenantAuthorization(req, res)) return;
+
+  try {
+    const regras = await configuracaoEventoService.listEventoProvidencias({
+      tenantId: req.tenantId,
+      eventoId: req.query?.eventoId,
+    });
+    return res.status(200).json(regras);
+  } catch (error) {
+    const status = error.statusCode || error.status || 500;
+    logError(
+      "config-event.controller.regras_list_error",
+      "Failed to list evento providencia rules.",
+      {
+        error,
+        tenantId: req.tenantId,
+        userId: req.user?.id,
+      }
+    );
+    return res.status(status).json({ error: error.message || "Internal server error." });
+  }
+};
+
+export const createEventoProvidencia = async (req, res) => {
+  if (!ensureTenantAuthorization(req, res)) return;
+
+  try {
+    const result = await configuracaoEventoService.createEventoProvidencia({
+      tenantId: req.tenantId,
+      payload: req.body,
+    });
+    return res.status(200).json(result);
+  } catch (error) {
+    const status = error.statusCode || error.status || 500;
+    logError(
+      "config-event.controller.regras_create_error",
+      "Failed to create evento providencia rule.",
+      {
+        error,
+        tenantId: req.tenantId,
+        userId: req.user?.id,
+      }
+    );
+    return res.status(status).json({ error: error.message || "Internal server error." });
+  }
+};
+
+export const updateEventoProvidencia = async (req, res) => {
+  if (!ensureTenantAuthorization(req, res)) return;
+
+  try {
+    const result = await configuracaoEventoService.updateEventoProvidencia({
+      tenantId: req.tenantId,
+      regraId: req.params?.id,
+      payload: req.body,
+    });
+    return res.status(200).json(result);
+  } catch (error) {
+    const status = error.statusCode || error.status || 500;
+    logError(
+      "config-event.controller.regras_update_error",
+      "Failed to update evento providencia rule.",
+      {
+        error,
+        tenantId: req.tenantId,
+        userId: req.user?.id,
+      }
+    );
+    return res.status(status).json({ error: error.message || "Internal server error." });
+  }
+};
+
+export const deleteEventoProvidencia = async (req, res) => {
+  if (!ensureTenantAuthorization(req, res)) return;
+
+  try {
+    const result = await configuracaoEventoService.deleteEventoProvidencia({
+      tenantId: req.tenantId,
+      regraId: req.params?.id,
+    });
+    return res.status(200).json(result);
+  } catch (error) {
+    const status = error.statusCode || error.status || 500;
+    logError(
+      "config-event.controller.regras_delete_error",
+      "Failed to delete evento providencia rule.",
+      {
+        error,
+        tenantId: req.tenantId,
+        userId: req.user?.id,
+      }
+    );
+    return res.status(status).json({ error: error.message || "Internal server error." });
+  }
+};
