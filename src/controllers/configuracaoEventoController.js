@@ -8,15 +8,18 @@ export const listEvents = async (req, res) => {
   try {
     const events = await configuracaoEventoService.listEvents({
       tenantId: req.tenantId,
+      search: req.query?.busca,
+      status: req.query?.status,
     });
     return res.status(200).json(events);
   } catch (error) {
+    const status = error.statusCode || error.status || 500;
     logError("config-event.controller.list_error", "Failed to list events.", {
       error,
       tenantId: req.tenantId,
       userId: req.user?.id,
     });
-    return res.status(500).json({ error: "Internal server error." });
+    return res.status(status).json({ error: error.message || "Internal server error." });
   }
 };
 
@@ -30,12 +33,13 @@ export const createEvent = async (req, res) => {
     });
     return res.status(200).json(result);
   } catch (error) {
+    const status = error.statusCode || error.status || 500;
     logError("config-event.controller.create_error", "Failed to create event.", {
       error,
       tenantId: req.tenantId,
       userId: req.user?.id,
     });
-    return res.status(500).json({ error: "Internal server error." });
+    return res.status(status).json({ error: error.message || "Internal server error." });
   }
 };
 
@@ -50,12 +54,13 @@ export const updateEvent = async (req, res) => {
     });
     return res.status(200).json(result);
   } catch (error) {
+    const status = error.statusCode || error.status || 500;
     logError("config-event.controller.update_error", "Failed to update event.", {
       error,
       tenantId: req.tenantId,
       userId: req.user?.id,
     });
-    return res.status(500).json({ error: "Internal server error." });
+    return res.status(status).json({ error: error.message || "Internal server error." });
   }
 };
 

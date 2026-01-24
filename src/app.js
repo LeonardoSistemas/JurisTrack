@@ -133,6 +133,10 @@ app.get("/probabilidades", (req, res) => {
     path.join(__dirname, "../public", "html", "probabilidade.html"));
 });
 
+app.get("/eventos", (req, res) => {
+  res.sendFile(path.join(__dirname, "../public", "html", "eventos.html"));
+});
+
 app.get("/estados", (req, res) => {
   res.sendFile(
     path.join(__dirname,"../public", "html", "estados.html"));
