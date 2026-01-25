@@ -99,6 +99,14 @@ app.get("/dashboard", (req, res) => {
   res.sendFile(path.join(__dirname, "../public", "html", "dashboard.html"));
 });
 
+app.get("/fila-trabalho", (req, res) => {
+  res.sendFile(path.join(__dirname, "../public", "html", "filaTrabalho.html"));
+});
+
+app.get("/tarefas-execucao", (req, res) => {
+  res.sendFile(path.join(__dirname, "../public", "html", "tarefasExecucao.html"));
+});
+
 app.get("/processos", (req, res) => {
   res.sendFile(
     path.join(__dirname, "../public", "html", "processos.html")
