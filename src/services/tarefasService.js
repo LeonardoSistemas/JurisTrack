@@ -3,6 +3,7 @@ import pool from "../config/postgresClient.js";
 const PRIORITY_CRITICAL = "Crítico";
 const PRIORITY_WARNING = "Atenção";
 const PRIORITY_OK = "Tranquilo";
+const STATUS_DOMAIN = "tarefa_fila_trabalho";
 
 function assertTenantId(tenantId) {
   if (!tenantId) {
@@ -26,6 +27,198 @@ function buildPrioritySql() {
       else '${PRIORITY_OK}'
     end
   `;
+}
+
+function normalizeStatusName(statusName) {
+  if (typeof statusName !== "string") return null;
+  const trimmed = statusName.trim();
+  return trimmed.length ? trimmed.toLowerCase() : null;
+}
+
+function buildStatusTransitionMap() {
+  return {
+    aguardando: ["em elaboração"],
+    "em elaboração": ["em revisão", "pronto para protocolo"],
+    "em revisão": ["pronto para protocolo"],
+    "pronto para protocolo": ["protocolado"],
+    protocolado: [],
+  };
+}
+
+function assertTaskId(taskId) {
+  if (!taskId) {
+    const error = new Error("taskId is required.");
+    error.statusCode = 400;
+    throw error;
+  }
+}
+
+function assertChecklistItemId(itemId) {
+  if (!itemId) {
+    const error = new Error("checklistItemId is required.");
+    error.statusCode = 400;
+    throw error;
+  }
+}
+
+function assertChecklistTitle(title) {
+  if (typeof title !== "string" || !title.trim()) {
+    const error = new Error("title is required.");
+    error.statusCode = 400;
+    throw error;
+  }
+}
+
+function assertChecklistDoneFlag(done) {
+  if (typeof done !== "boolean") {
+    const error = new Error("done must be a boolean.");
+    error.statusCode = 400;
+    throw error;
+  }
+}
+
+function normalizeChecklistPayload(payload) {
+  const title = typeof payload?.titulo === "string" ? payload.titulo.trim() : "";
+  const order =
+    payload?.ordem === null || payload?.ordem === undefined
+      ? null
+      : Number(payload.ordem);
+  const isRequired =
+    payload?.obrigatorio === undefined ? true : Boolean(payload.obrigatorio);
+
+  return {
+    title,
+    order: Number.isNaN(order) ? null : order,
+    isRequired,
+  };
+}
+
+async function fetchTaskSnapshot(taskId, tenantId) {
+  const { rows } = await pool.query(
+    `
+      select
+        t.id,
+        t.status_id,
+        s.nome as status_nome,
+        t.revisor_id
+      from tarefa_fila_trabalho t
+      inner join aux_status s on s.id = t.status_id
+      where t.id = $1
+        and t.tenant_id = $2
+      limit 1
+    `,
+    [taskId, tenantId]
+  );
+
+  return rows?.[0] ?? null;
+}
+
+async function assertTaskExists(taskId, tenantId) {
+  const { rows } = await pool.query(
+    `
+      select id
+      from tarefa_fila_trabalho
+      where id = $1
+        and tenant_id = $2
+      limit 1
+    `,
+    [taskId, tenantId]
+  );
+
+  if (!rows.length) {
+    const error = new Error("Task not found.");
+    error.statusCode = 404;
+    throw error;
+  }
+}
+
+async function fetchStatusByPayload({ statusId, statusName }) {
+  if (!statusId && !statusName) {
+    const error = new Error("status_id or status is required.");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  if (statusId && typeof statusId !== "string") {
+    const error = new Error("status_id must be a string.");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  if (statusName && typeof statusName !== "string") {
+    const error = new Error("status must be a string.");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const { rows } = await pool.query(
+    `
+      select id, nome
+      from aux_status
+      where dominio = $1
+        and ativo = true
+        and (
+          ($2::uuid is not null and id = $2::uuid)
+          or ($3 is not null and lower(nome) = lower($3))
+        )
+      limit 1
+    `,
+    [STATUS_DOMAIN, statusId ?? null, statusName ?? null]
+  );
+
+  if (!rows.length) {
+    const error = new Error("Status not found.");
+    error.statusCode = 404;
+    throw error;
+  }
+
+  return rows[0];
+}
+
+function assertValidTransition({ currentStatus, targetStatus, reviewerId }) {
+  const normalizedCurrent = normalizeStatusName(currentStatus);
+  const normalizedTarget = normalizeStatusName(targetStatus);
+
+  if (!normalizedCurrent || !normalizedTarget) {
+    const error = new Error("Invalid status transition.");
+    error.statusCode = 422;
+    throw error;
+  }
+
+  if (normalizedCurrent === normalizedTarget) {
+    return;
+  }
+
+  if (
+    normalizedCurrent === "em elaboração" &&
+    normalizedTarget === "pronto para protocolo" &&
+    !reviewerId
+  ) {
+    return;
+  }
+
+  const transitions = buildStatusTransitionMap();
+  const allowedTargets = transitions[normalizedCurrent] ?? [];
+
+  if (!allowedTargets.includes(normalizedTarget)) {
+    const error = new Error("Status transition not allowed.");
+    error.statusCode = 422;
+    throw error;
+  }
+}
+
+function mapChecklistRow(row) {
+  if (!row) return null;
+  return {
+    id: row.id,
+    tarefa_id: row.tarefa_id,
+    titulo: row.titulo,
+    ordem: row.ordem,
+    concluido: row.concluido,
+    obrigatorio: row.obrigatorio,
+    created_at: row.created_at,
+    updated_at: row.updated_at,
+  };
 }
 
 function mapTaskRow(row) {
@@ -158,11 +351,7 @@ export async function listTasks(filters, tenantId) {
 
 export async function getTaskById(taskId, tenantId) {
   assertTenantId(tenantId);
-  if (!taskId) {
-    const error = new Error("id da tarefa é obrigatório.");
-    error.statusCode = 400;
-    throw error;
-  }
+  assertTaskId(taskId);
 
   const prioritySql = buildPrioritySql();
   const { rows } = await pool.query(
@@ -216,11 +405,7 @@ export async function getTaskById(taskId, tenantId) {
 
 export async function assignTask({ taskId, tenantId, assigneeId, reviewerId }) {
   assertTenantId(tenantId);
-  if (!taskId) {
-    const error = new Error("id da tarefa é obrigatório.");
-    error.statusCode = 400;
-    throw error;
-  }
+  assertTaskId(taskId);
 
   const payload = {};
 
@@ -262,6 +447,182 @@ export async function assignTask({ taskId, tenantId, assigneeId, reviewerId }) {
     error.statusCode = 404;
     throw error;
   }
+
+  return getTaskById(taskId, tenantId);
+}
+
+export async function listChecklistItems({ taskId, tenantId }) {
+  assertTenantId(tenantId);
+  assertTaskId(taskId);
+
+  await assertTaskExists(taskId, tenantId);
+
+  const { rows } = await pool.query(
+    `
+      select
+        id,
+        tarefa_id,
+        titulo,
+        ordem,
+        concluido,
+        obrigatorio,
+        created_at,
+        updated_at
+      from tarefa_checklist_item
+      where tarefa_id = $1
+        and tenant_id = $2
+      order by ordem asc, created_at asc
+    `,
+    [taskId, tenantId]
+  );
+
+  return rows.map((row) => mapChecklistRow(row));
+}
+
+export async function updateChecklistItem({
+  taskId,
+  checklistItemId,
+  tenantId,
+  done,
+}) {
+  assertTenantId(tenantId);
+  assertTaskId(taskId);
+  assertChecklistItemId(checklistItemId);
+  assertChecklistDoneFlag(done);
+
+  const { rows } = await pool.query(
+    `
+      update tarefa_checklist_item
+      set concluido = $1,
+          updated_at = $2
+      where id = $3
+        and tarefa_id = $4
+        and tenant_id = $5
+      returning
+        id,
+        tarefa_id,
+        titulo,
+        ordem,
+        concluido,
+        obrigatorio,
+        created_at,
+        updated_at
+    `,
+    [done, new Date(), checklistItemId, taskId, tenantId]
+  );
+
+  if (!rows.length) {
+    const error = new Error("Checklist item not found.");
+    error.statusCode = 404;
+    throw error;
+  }
+
+  return mapChecklistRow(rows[0]);
+}
+
+export async function createChecklistItem({ taskId, tenantId, payload }) {
+  assertTenantId(tenantId);
+  assertTaskId(taskId);
+
+  const normalized = normalizeChecklistPayload(payload);
+  assertChecklistTitle(normalized.title);
+
+  await assertTaskExists(taskId, tenantId);
+
+  const { rows } = await pool.query(
+    `
+      insert into tarefa_checklist_item
+        (tarefa_id, titulo, ordem, obrigatorio, tenant_id)
+      values ($1, $2, $3, $4, $5)
+      returning
+        id,
+        tarefa_id,
+        titulo,
+        ordem,
+        concluido,
+        obrigatorio,
+        created_at,
+        updated_at
+    `,
+    [
+      taskId,
+      normalized.title,
+      normalized.order ?? 0,
+      normalized.isRequired,
+      tenantId,
+    ]
+  );
+
+  return mapChecklistRow(rows[0]);
+}
+
+export async function deleteChecklistItem({
+  taskId,
+  checklistItemId,
+  tenantId,
+}) {
+  assertTenantId(tenantId);
+  assertTaskId(taskId);
+  assertChecklistItemId(checklistItemId);
+
+  const { rows } = await pool.query(
+    `
+      delete from tarefa_checklist_item
+      where id = $1
+        and tarefa_id = $2
+        and tenant_id = $3
+      returning id
+    `,
+    [checklistItemId, taskId, tenantId]
+  );
+
+  if (!rows.length) {
+    const error = new Error("Checklist item not found.");
+    error.statusCode = 404;
+    throw error;
+  }
+
+  return { success: true };
+}
+
+export async function updateTaskStatus({ taskId, tenantId, payload }) {
+  assertTenantId(tenantId);
+  assertTaskId(taskId);
+
+  const statusId = payload?.status_id ?? null;
+  const statusName = payload?.status ?? null;
+
+  const [task, targetStatus] = await Promise.all([
+    fetchTaskSnapshot(taskId, tenantId),
+    fetchStatusByPayload({ statusId, statusName }),
+  ]);
+
+  if (!task) {
+    const error = new Error("Task not found.");
+    error.statusCode = 404;
+    throw error;
+  }
+
+  assertValidTransition({
+    currentStatus: task.status_nome,
+    targetStatus: targetStatus.nome,
+    reviewerId: task.revisor_id,
+  });
+
+  if (task.status_id === targetStatus.id) {
+    return getTaskById(taskId, tenantId);
+  }
+
+  await pool.query(
+    `
+      update tarefa_fila_trabalho
+      set status_id = $1,
+          updated_at = $2
+      where id = $3
+        and tenant_id = $4
+    `,
+    [targetStatus.id, new Date(), taskId, tenantId]
+  );
 
   return getTaskById(taskId, tenantId);
 }
