@@ -33,6 +33,7 @@ import feriadoRoute from "./routes/feriadoRoute.js";
 import eventoProvidenciaRoute from "./routes/eventoProvidenciaRoute.js";
 import configuracaoEventoRoute from "./routes/configuracaoEventoRoute.js";
 import configuracaoProvidenciaRoute from "./routes/configuracaoProvidenciaRoute.js";
+import tarefasRoute from "./routes/tarefasRoute.js";
 
 
 const __filename = fileURLToPath(import.meta.url);
@@ -82,6 +83,7 @@ app.use("/api/users", userRoute);
 app.use('/api/publicacoes', publicacoesRoutes);
 app.use('/api/similaridade', conciliacaoRoute);
 app.use("/api/feriados", feriadoRoute);
+app.use("/api/tarefas", tarefasRoute);
 
 /* Rota padrão */
 
