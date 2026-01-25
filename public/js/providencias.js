@@ -18,6 +18,9 @@ const els = {
   alertArea: document.getElementById("alertArea"),
   modalEl: document.getElementById("modalProvidencia"),
   modalTitle: document.getElementById("modalProvidenciaTitle"),
+  tabProvidenciaBtn: document.getElementById("tabProvidenciaBtn"),
+  tabChecklistBtn: document.getElementById("tabChecklistBtn"),
+  tabModelosBtn: document.getElementById("tabModelosBtn"),
   providenciaId: document.getElementById("providenciaId"),
   nomeInput: document.getElementById("nomeInput"),
   descricaoInput: document.getElementById("descricaoInput"),
@@ -307,6 +310,8 @@ function abrirModalCriar() {
   els.ativoInput.checked = true;
   state.currentProvidenciaId = null;
   resetModalSections();
+  setModalTabsEnabled(false);
+  showTabByButton(els.tabProvidenciaBtn);
   setChecklistSectionEnabled(false);
   setModelosSectionEnabled(false);
   setChecklistTableMessage("Salve a providência para adicionar itens.");
@@ -325,6 +330,8 @@ function abrirModalEditar(providencia) {
   els.ativoInput.checked = Boolean(providencia.ativo);
   state.currentProvidenciaId = providencia.id;
   resetModalSections();
+  setModalTabsEnabled(true);
+  showTabByButton(els.tabProvidenciaBtn);
   setChecklistSectionEnabled(true);
   setModelosSectionEnabled(true);
   carregarChecklist();
@@ -367,13 +374,40 @@ async function salvarProvidencia() {
       throw new Error(data?.error || "Erro ao salvar providência.");
     }
 
-    bootstrap.Modal.getInstance(els.modalEl)?.hide();
+    const providenciaId = data?.id || id;
+    state.currentProvidenciaId = providenciaId || null;
+    if (els.providenciaId && providenciaId) {
+      els.providenciaId.value = providenciaId;
+    }
+    setChecklistSectionEnabled(true);
+    setModelosSectionEnabled(true);
+    setModalTabsEnabled(true);
+    carregarChecklist();
+    carregarModelosVinculados();
+    carregarModelosDisponiveis();
+    showTabByButton(els.tabChecklistBtn);
     showAlert("success", "Providência salva com sucesso.");
     carregarProvidencias();
   } catch (error) {
     console.error("[providencias] erro ao salvar", error);
     showAlert("danger", error.message);
   }
+}
+
+function setModalTabsEnabled(enabled) {
+  [els.tabChecklistBtn, els.tabModelosBtn].forEach((tab) => {
+    if (!tab) return;
+    tab.classList.toggle("disabled", !enabled);
+    tab.disabled = !enabled;
+    tab.setAttribute("aria-disabled", enabled ? "false" : "true");
+    tab.setAttribute("tabindex", enabled ? "0" : "-1");
+  });
+}
+
+function showTabByButton(tabButton) {
+  if (!tabButton) return;
+  const tabInstance = bootstrap.Tab.getOrCreateInstance(tabButton);
+  tabInstance.show();
 }
 
 function resetModalSections() {
