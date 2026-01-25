@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { upload } from "../middlewares/multer.js";
 import * as tarefasController from "../controllers/tarefasController.js";
 
 const router = Router();
@@ -11,5 +12,6 @@ router.put("/:id/checklist/:itemId", tarefasController.updateChecklist);
 router.post("/:id/checklist", tarefasController.createChecklist);
 router.delete("/:id/checklist/:itemId", tarefasController.deleteChecklist);
 router.patch("/:id/status", tarefasController.updateStatus);
+router.post("/:id/protocolar", upload.single("file"), tarefasController.protocol);
 
 export default router;

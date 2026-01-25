@@ -1,4 +1,5 @@
 import pool from "../config/postgresClient.js";
+import { uploadFileToProcessoDoc } from "./uploadService.js";
 
 const PRIORITY_CRITICAL = "Crítico";
 const PRIORITY_WARNING = "Atenção";
@@ -73,6 +74,51 @@ function assertChecklistDoneFlag(done) {
   if (typeof done !== "boolean") {
     const error = new Error("done must be a boolean.");
     error.statusCode = 400;
+    throw error;
+  }
+}
+
+async function fetchTaskProtocolData(taskId, tenantId) {
+  const { rows } = await pool.query(
+    `
+      select
+        t.id,
+        t.status_id,
+        s.nome as status_nome,
+        t.revisor_id,
+        t.processo_id,
+        p.numprocesso as numero_processo
+      from tarefa_fila_trabalho t
+      inner join aux_status s on s.id = t.status_id
+      inner join processos p on p.idprocesso = t.processo_id
+      where t.id = $1
+        and t.tenant_id = $2
+        and p.tenant_id = $2
+      limit 1
+    `,
+    [taskId, tenantId]
+  );
+
+  return rows?.[0] ?? null;
+}
+
+async function assertChecklistCompleted(taskId, tenantId) {
+  const { rows } = await pool.query(
+    `
+      select count(1)::int as pending
+      from tarefa_checklist_item
+      where tarefa_id = $1
+        and tenant_id = $2
+        and obrigatorio = true
+        and concluido = false
+    `,
+    [taskId, tenantId]
+  );
+
+  const pending = rows?.[0]?.pending ?? 0;
+  if (pending > 0) {
+    const error = new Error("Checklist required items are not complete.");
+    error.statusCode = 422;
     throw error;
   }
 }
@@ -625,4 +671,63 @@ export async function updateTaskStatus({ taskId, tenantId, payload }) {
   );
 
   return getTaskById(taskId, tenantId);
+}
+
+export async function protocolTask({ taskId, tenantId, file }) {
+  assertTenantId(tenantId);
+  assertTaskId(taskId);
+
+  if (!file) {
+    const error = new Error("file is required.");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const [task, targetStatus] = await Promise.all([
+    fetchTaskProtocolData(taskId, tenantId),
+    fetchStatusByPayload({ statusId: null, statusName: "Protocolado" }),
+  ]);
+
+  if (!task) {
+    const error = new Error("Task not found.");
+    error.statusCode = 404;
+    throw error;
+  }
+
+  if (normalizeStatusName(task.status_nome) === "protocolado") {
+    const error = new Error("Task already protocolado.");
+    error.statusCode = 422;
+    throw error;
+  }
+
+  assertValidTransition({
+    currentStatus: task.status_nome,
+    targetStatus: targetStatus.nome,
+    reviewerId: task.revisor_id,
+  });
+
+  await assertChecklistCompleted(taskId, tenantId);
+
+  const uploadResult = await uploadFileToProcessoDoc(
+    file,
+    task.numero_processo,
+    task.processo_id,
+    tenantId
+  );
+
+  await pool.query(
+    `
+      update tarefa_fila_trabalho
+      set status_id = $1,
+          updated_at = $2
+      where id = $3
+        and tenant_id = $4
+    `,
+    [targetStatus.id, new Date(), taskId, tenantId]
+  );
+
+  return {
+    task: await getTaskById(taskId, tenantId),
+    documento: uploadResult,
+  };
 }

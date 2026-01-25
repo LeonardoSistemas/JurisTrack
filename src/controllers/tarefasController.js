@@ -7,6 +7,7 @@ import {
   getTaskById,
   listChecklistItems,
   listTasks,
+  protocolTask,
   updateChecklistItem,
   updateTaskStatus,
 } from "../services/tarefasService.js";
@@ -374,6 +375,46 @@ export const updateStatus = async (req, res) => {
   } catch (error) {
     const status = error.statusCode || 500;
     logError("tarefas.controller.status_error", "Failed to update task status.", {
+      tenantId: req.tenantId,
+      userId: req.user?.id,
+      taskId,
+      error,
+    });
+    return res.status(status).json({ error: error.message });
+  }
+};
+
+export const protocol = async (req, res) => {
+  if (!ensureTenantAuthorization(req, res)) return;
+
+  const taskId = req.params?.id;
+  if (!taskId) {
+    logWarn("tarefas.controller.protocol_validation", "id is required.", {
+      tenantId: req.tenantId,
+      userId: req.user?.id,
+    });
+    return res.status(400).json({ error: "id is required." });
+  }
+
+  if (!req.file) {
+    logWarn("tarefas.controller.protocol_file_missing", "file is required.", {
+      tenantId: req.tenantId,
+      userId: req.user?.id,
+      taskId,
+    });
+    return res.status(400).json({ error: "Arquivo obrigatório." });
+  }
+
+  try {
+    const result = await protocolTask({
+      taskId,
+      tenantId: req.tenantId,
+      file: req.file,
+    });
+    return res.status(200).json(result);
+  } catch (error) {
+    const status = error.statusCode || 500;
+    logError("tarefas.controller.protocol_error", "Failed to protocol task.", {
       tenantId: req.tenantId,
       userId: req.user?.id,
       taskId,
