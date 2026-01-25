@@ -11,6 +11,52 @@ create table if not exists public.aux_status (
   cor_hex text
 );
 
+-- Seed initial statuses for work queue lifecycle.
+insert into public.aux_status (nome, dominio, ativo, cor_hex)
+select 'Aguardando', 'tarefa_fila_trabalho', true, '#9e9e9e'
+where not exists (
+  select 1
+  from public.aux_status
+  where nome = 'Aguardando'
+    and dominio = 'tarefa_fila_trabalho'
+);
+
+insert into public.aux_status (nome, dominio, ativo, cor_hex)
+select 'Em Elaboração', 'tarefa_fila_trabalho', true, '#2196f3'
+where not exists (
+  select 1
+  from public.aux_status
+  where nome = 'Em Elaboração'
+    and dominio = 'tarefa_fila_trabalho'
+);
+
+insert into public.aux_status (nome, dominio, ativo, cor_hex)
+select 'Em Revisão', 'tarefa_fila_trabalho', true, '#9c27b0'
+where not exists (
+  select 1
+  from public.aux_status
+  where nome = 'Em Revisão'
+    and dominio = 'tarefa_fila_trabalho'
+);
+
+insert into public.aux_status (nome, dominio, ativo, cor_hex)
+select 'Pronto para Protocolo', 'tarefa_fila_trabalho', true, '#ff9800'
+where not exists (
+  select 1
+  from public.aux_status
+  where nome = 'Pronto para Protocolo'
+    and dominio = 'tarefa_fila_trabalho'
+);
+
+insert into public.aux_status (nome, dominio, ativo, cor_hex)
+select 'Protocolado', 'tarefa_fila_trabalho', true, '#4caf50'
+where not exists (
+  select 1
+  from public.aux_status
+  where nome = 'Protocolado'
+    and dominio = 'tarefa_fila_trabalho'
+);
+
 create table if not exists public.tarefa_fila_trabalho (
   id uuid primary key default gen_random_uuid(),
   processo_id integer not null references public.processos(idprocesso) on delete cascade,
