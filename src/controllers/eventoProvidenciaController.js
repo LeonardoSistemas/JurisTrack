@@ -57,8 +57,15 @@ function validateConfirmPayload(payload) {
     return errors;
   }
 
-  const { idItem, evento_id, providencia_id, prazo_final, modelo_id, observacao } =
-    payload;
+  const {
+    idItem,
+    evento_id,
+    providencia_id,
+    prazo_final,
+    modelo_id,
+    observacao,
+    responsavel_id,
+  } = payload;
 
   if (!isNonEmptyString(idItem)) {
     errors.push("idItem é obrigatório.");
@@ -86,6 +93,10 @@ function validateConfirmPayload(payload) {
 
   if (observacao != null && typeof observacao !== "string") {
     errors.push("observacao deve ser string.");
+  }
+
+  if (responsavel_id != null && !isNonEmptyString(responsavel_id)) {
+    errors.push("responsavel_id deve ser string.");
   }
 
   return errors;
@@ -143,6 +154,7 @@ export const confirmar = async (req, res) => {
     prazo_final,
     modelo_id,
     observacao,
+    responsavel_id: responsavelId,
     item_similaridade_id,
     publicacao_id,
     decisao_final_json,
@@ -167,6 +179,7 @@ export const confirmar = async (req, res) => {
             prazoFinal: prazo_final,
             modeloId: modelo_id,
             observacao,
+            responsavelId,
             tenantId: req.tenantId,
             userId: req.user?.id,
           });
