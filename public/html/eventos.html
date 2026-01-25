@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Eventos - Juris Track</title>
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <link
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/css/menu.css" />
+    <style>
+      .card-custom {
+        border: none;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        border-radius: 8px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="d-flex">
+      <app-sidebar style="display: contents"></app-sidebar>
+
+      <div class="flex-grow-1 p-4" style="background-color: #f5f7fb">
+        <div class="card card-custom p-4 mb-4">
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <div>
+              <h4>
+                <i class="fas fa-calendar-check me-2 text-primary"></i>Eventos
+                Processuais
+              </h4>
+              <p class="text-muted mb-0">
+                Gerencie os tipos de eventos processuais do sistema
+              </p>
+            </div>
+          </div>
+
+          <div id="alertArea" class="mb-3"></div>
+
+          <div class="d-flex gap-2 mb-3 flex-wrap">
+            <input
+              type="text"
+              id="buscaInput"
+              class="form-control"
+              placeholder="Buscar por nome ou descrição..."
+            />
+            <select id="filtroStatus" class="form-select" style="max-width: 200px">
+              <option value="todos">Todos</option>
+              <option value="ativo">Ativos</option>
+              <option value="inativo">Inativos</option>
+            </select>
+            <button class="btn btn-outline-primary" id="btnBuscar">
+              <i class="fas fa-search me-1"></i>Buscar
+            </button>
+            <button
+              class="btn btn-primary text-nowrap"
+              id="btnNovoEvento"
+              data-bs-toggle="modal"
+              data-bs-target="#modalEvento"
+            >
+              <i class="fas fa-plus me-1"></i>Novo Evento
+            </button>
+          </div>
+
+          <div class="table-responsive bg-white rounded">
+            <table class="table table-hover align-middle mb-0">
+              <thead class="table-light">
+                <tr>
+                  <th>Nome</th>
+                  <th>Descrição</th>
+                  <th>Status</th>
+                  <th class="text-end">Ações</th>
+                </tr>
+              </thead>
+              <tbody id="tabelaEventosBody"></tbody>
+            </table>
+          </div>
+          <div class="d-flex justify-content-between align-items-center mt-3 flex-wrap gap-2">
+            <div class="text-muted small" id="eventosResumo"></div>
+            <nav>
+              <ul class="pagination mb-0" id="eventosPagination"></ul>
+            </nav>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal fade" id="modalEvento" tabindex="-1">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="modalEventoTitle">Cadastro de Evento</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+          </div>
+          <div class="modal-body">
+            <form id="formEvento">
+              <input type="hidden" id="eventoId" />
+              <div class="mb-3">
+                <label class="form-label">Nome do Evento</label>
+                <input type="text" class="form-control" id="nomeInput" required />
+              </div>
+              <div class="mb-3">
+                <label class="form-label">Descrição</label>
+                <textarea
+                  class="form-control"
+                  id="descricaoInput"
+                  rows="3"
+                  placeholder="Opcional"
+                ></textarea>
+              </div>
+              <div class="mb-3">
+                <div class="form-check form-switch">
+                  <input
+                    class="form-check-input"
+                    type="checkbox"
+                    id="ativoInput"
+                    checked
+                  />
+                  <label class="form-check-label" for="ativoInput">
+                    Registro Ativo
+                  </label>
+                </div>
+              </div>
+            </form>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+              Cancelar
+            </button>
+            <button type="button" class="btn btn-primary" id="salvarEventoBtn">
+              Salvar
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="/js/eventos.js"></script>
+    <script src="/js/components/sidebar.js"></script>
+  </body>
+</html>
