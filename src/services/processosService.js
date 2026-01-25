@@ -1,9 +1,32 @@
 import supabase from "../config/supabase.js";
 import { injectTenant, withTenantFilter } from "../repositories/tenantScope.js";
 
-function sanitizeUpdatePayload(dados) {
+function normalizeProcessoPayload(dados) {
   if (!dados || typeof dados !== "object") return {};
   const payload = { ...dados };
+
+  if ("data_distribuicao" in payload && !("datainicial" in payload)) {
+    payload.datainicial = payload.data_distribuicao;
+  }
+  delete payload.data_distribuicao;
+
+  if (!payload.pasta) {
+    if (payload.numprocesso) {
+      payload.pasta = payload.numprocesso;
+    } else {
+      payload.pasta = "sem_pasta";
+    }
+  }
+
+  Object.keys(payload).forEach((key) => {
+    if (payload[key] === "") payload[key] = null;
+  });
+
+  return payload;
+}
+
+function sanitizeUpdatePayload(dados) {
+  const payload = normalizeProcessoPayload(dados);
   delete payload.tenant_id;
   return payload;
 }
@@ -66,14 +89,13 @@ export const obterProcessoCompleto = async (id, tenantId) => {
         id,
         texto_integral,
         data_publicacao,
-        Prazo ( *, responsavel:pessoas ( nome ) ),
+        Prazo ( * ),
         Andamento ( * ),
         Historico_Peticoes ( * )
       ),
       
       Andamento (
-        *,
-        responsavel:pessoas!Andamento_responsavelId_fkey ( nome )
+        *
       )
     `
     )
@@ -82,12 +104,64 @@ export const obterProcessoCompleto = async (id, tenantId) => {
     .maybeSingle();
 
   if (error) throw error;
+  if (!data) return data;
+
+  const normalizeArray = (value) => {
+    if (!value) return [];
+    return Array.isArray(value) ? value : [value];
+  };
+
+  const responsavelIds = new Set();
+
+  normalizeArray(data.Andamento).forEach((andamento) => {
+    const responsavelId =
+      andamento?.responsavelId ?? andamento?.responsavelid ?? null;
+    if (responsavelId) responsavelIds.add(responsavelId);
+  });
+
+  normalizeArray(data.Publicacao).forEach((pub) => {
+    normalizeArray(pub?.Prazo).forEach((prazo) => {
+      const responsavelId =
+        prazo?.responsavelId ?? prazo?.responsavelid ?? null;
+      if (responsavelId) responsavelIds.add(responsavelId);
+    });
+  });
+
+  if (responsavelIds.size > 0) {
+    const { data: responsaveis, error: respError } = await supabase
+      .from("pessoas")
+      .select("idpessoa, nome")
+      .in("idpessoa", Array.from(responsavelIds));
+
+    if (respError) throw respError;
+
+    const responsavelMap = new Map(
+      (responsaveis || []).map((item) => [item.idpessoa, item])
+    );
+
+    normalizeArray(data.Andamento).forEach((andamento) => {
+      const responsavelId =
+        andamento?.responsavelId ?? andamento?.responsavelid ?? null;
+      const responsavel = responsavelMap.get(responsavelId);
+      if (responsavel) andamento.responsavel = responsavel;
+    });
+
+    normalizeArray(data.Publicacao).forEach((pub) => {
+      normalizeArray(pub?.Prazo).forEach((prazo) => {
+        const responsavelId =
+          prazo?.responsavelId ?? prazo?.responsavelid ?? null;
+        const responsavel = responsavelMap.get(responsavelId);
+        if (responsavel) prazo.responsavel = responsavel;
+      });
+    });
+  }
+
   return data;
 };
 
 export const criarProcesso = async (dados, tenantId) => {
   const { partes, ...dadosProcesso } = dados;
-  const payload = injectTenant(dadosProcesso, tenantId);
+  const payload = injectTenant(normalizeProcessoPayload(dadosProcesso), tenantId);
   const { data, error } = await supabase
     .from("processos")
     .insert([payload])

@@ -65,6 +65,14 @@ function resolvePrazoDias(item = {}) {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
 }
 
+function resolveTipoAndamento(item = {}) {
+  return (
+    item.tipo_andamento ??
+    item.tipoAndamento ??
+    null
+  );
+}
+
 function normalizeEmbeddingValue(raw) {
   if (!raw) return null;
 
@@ -201,6 +209,7 @@ export async function saveSimilaridadeResultado({
         const original = itensOriginais[index] ?? {};
         const dataPublicacao = resolveDataPublicacao(original);
         const prazoDias = resolvePrazoDias(original);
+        const tipoAndamento = resolveTipoAndamento(original);
         const dataVencimento = await calcularDataVencimento(
           dataPublicacao,
           prazoDias
@@ -218,6 +227,7 @@ export async function saveSimilaridadeResultado({
               resultado?.numero_processo
             ),
             texto_publicacao: resolveTexto(original, resultado?.texto),
+            tipo_andamento: tipoAndamento,
             data_publicacao: dataPublicacao,
             prazo_dias: prazoDias,
             data_vencimento: dataVencimento,

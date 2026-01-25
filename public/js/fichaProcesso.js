@@ -154,7 +154,7 @@ async function carregarDadosProcesso(id) {
         }
         renderizarTabelaPartes();
 
-        if (proc.data_distribuicao) document.getElementById("DataDistribuicao").value = proc.data_distribuicao.split("T")[0];
+        if (proc.datainicial) document.getElementById("DataDistribuicao").value = proc.datainicial.split("T")[0];
 
         if (proc.cidades && proc.cidades.idestado) {
             const elEstado = document.getElementById("selectEstado");
@@ -336,7 +336,7 @@ window.salvarProcesso = async function () {
         classe_processual: val("ClasseProcessual"),
         assunto: val("Assunto"),
         valor_causa: val("ValorCausa") ? parseFloat(val("ValorCausa").replace(",", ".")) : null,
-        data_distribuicao: val("DataDistribuicao"),
+        datainicial: val("DataDistribuicao"),
         obs: val("Obs"),
         idtipoacao: val("id_tipo_acao"),
         idrito: val("id_rito"),
