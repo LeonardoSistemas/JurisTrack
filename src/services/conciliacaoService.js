@@ -208,13 +208,15 @@ async function ensureProcesso(client, { numero_processo, tenantId }) {
     return existing.rows[0].idprocesso;
   }
 
+  const pasta = numero_processo || "sem_pasta";
+
   const inserted = await client.query(
     `
-      insert into processos (numprocesso, tenant_id)
-      values ($1, $2)
+      insert into processos (numprocesso, tenant_id, pasta)
+      values ($1, $2, $3)
       returning idprocesso
     `,
-    [numero_processo, tenantId]
+    [numero_processo, tenantId, pasta]
   );
 
   return inserted.rows[0].idprocesso;
@@ -376,8 +378,14 @@ export async function listarPendentesPorUpload({ uploadId, tenantId }) {
       from similaridade_itens
       where upload_documento_id = $1
         and tenant_id = $2
-        and status_decisao = 'pendente'
-      order by created_at asc
+        and status_decisao in ('pendente', 'cadastrado_sem_prazo')
+      order by
+        case
+          when status_decisao = 'cadastrado_sem_prazo' then 0
+          when status_decisao = 'pendente' then 1
+          else 2
+        end,
+        created_at asc
     `,
     [uploadId, tenantId]
   );
