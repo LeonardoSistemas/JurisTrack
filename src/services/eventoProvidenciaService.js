@@ -1,13 +1,11 @@
 import pool from "../config/postgresClient.js";
+import supabase from "../config/supabase.js";
 import { withTenantFilter } from "../repositories/tenantScope.js";
 import { normalizarTexto } from "../utils/normalizarTexto.js";
 import { logWarn, logError } from "../utils/logger.js";
 import { buildPrazoSuggestion } from "./prazoService.js";
 
 const EVENTO_NAO_CLASSIFICADO = "EVENTO_NAO_CLASSIFICADO";
-const TASK_STATUS_DOMAIN = "tarefa_fila_trabalho";
-const TASK_STATUS_INITIAL = "Aguardando";
-
 function normalizePrazo(prazo) {
   if (!prazo) return null;
   if (typeof prazo === "string") {
@@ -19,24 +17,6 @@ function normalizePrazo(prazo) {
     tipo: prazo.tipo ?? null,
     data_vencimento: prazo.data_vencimento ?? null,
   };
-}
-
-function extractPrazoDate(prazo) {
-  if (!prazo) return null;
-  if (typeof prazo === "string") return prazo;
-  if (typeof prazo !== "object") return null;
-  return prazo.data_vencimento ?? prazo.data_limite ?? null;
-}
-
-function resolveTaskDeadline({ prazoFinal, item, sugestao }) {
-  const fromFinal = extractPrazoDate(prazoFinal);
-  if (fromFinal) return fromFinal;
-  if (item?.data_vencimento) return item.data_vencimento;
-  const fromSugestao = extractPrazoDate(sugestao?.providencia_padrao?.prazo_sugerido);
-  if (fromSugestao) return fromSugestao;
-  const error = new Error("Data limite da tarefa não encontrada.");
-  error.statusCode = 422;
-  throw error;
 }
 
 function buildAuditoriaPayload({ sugestao, decisaoFinal }) {
@@ -88,27 +68,6 @@ async function withTransaction(fn) {
   }
 }
 
-async function fetchStatusId(client) {
-  const { rows } = await client.query(
-    `
-      select id
-      from aux_status
-      where nome = $1
-        and dominio = $2
-      limit 1
-    `,
-    [TASK_STATUS_INITIAL, TASK_STATUS_DOMAIN]
-  );
-
-  if (!rows?.length) {
-    const error = new Error("Status inicial da tarefa não encontrado.");
-    error.statusCode = 500;
-    throw error;
-  }
-
-  return rows[0].id;
-}
-
 async function fetchProcessoId(client, numeroProcesso, tenantId) {
   if (!numeroProcesso) {
     const error = new Error("Número do processo ausente para criação da tarefa.");
@@ -134,49 +93,6 @@ async function fetchProcessoId(client, numeroProcesso, tenantId) {
   }
 
   return rows[0].idprocesso;
-}
-
-async function fetchProvidenciaChecklist(client, providenciaId, tenantId) {
-  const { rows } = await client.query(
-    `
-      select titulo, ordem, obrigatorio
-      from providencia_checklist
-      where providencia_id = $1
-        and tenant_id = $2
-      order by ordem asc
-    `,
-    [providenciaId, tenantId]
-  );
-
-  return rows ?? [];
-}
-
-async function insertChecklistItems(client, { tarefaId, tenantId, items }) {
-  if (!items.length) return;
-
-  const values = [];
-  const placeholders = items.map((item, index) => {
-    const baseIndex = index * 5;
-    values.push(
-      tarefaId,
-      item.titulo,
-      item.ordem ?? 0,
-      item.obrigatorio ?? true,
-      tenantId
-    );
-    return `($${baseIndex + 1}, $${baseIndex + 2}, $${baseIndex + 3}, $${
-      baseIndex + 4
-    }, $${baseIndex + 5})`;
-  });
-
-  await client.query(
-    `
-      insert into tarefa_checklist_item
-        (tarefa_id, titulo, ordem, obrigatorio, tenant_id)
-      values ${placeholders.join(", ")}
-    `,
-    values
-  );
 }
 
 async function fetchItemForUpdate(client, itemId, tenantId) {
@@ -248,15 +164,31 @@ async function fetchNaoClassificado(tenantId) {
     });
   }
 
-  if (!data) {
-    return {
+  if (data) {
+    return data;
+  }
+
+  const { data: fallback, error: fallbackError } = await supabase
+    .from("evento_processual")
+    .select("id, nome, descricao")
+    .eq("nome", EVENTO_NAO_CLASSIFICADO)
+    .is("tenant_id", null)
+    .maybeSingle();
+
+  if (fallbackError) {
+    logWarn("evento.nao_classificado.fetch_fallback_error", "Erro ao buscar evento não classificado global", {
+      error: fallbackError,
+      tenantId,
+    });
+  }
+
+  return (
+    fallback || {
       id: null,
       nome: EVENTO_NAO_CLASSIFICADO,
       descricao: "Evento não classificado",
-    };
-  }
-
-  return data;
+    }
+  );
 }
 
 async function fetchEventoById(eventoId, tenantId) {
@@ -269,7 +201,20 @@ async function fetchEventoById(eventoId, tenantId) {
     throw error;
   }
 
-  return data;
+  if (data) return data;
+
+  const { data: fallback, error: fallbackError } = await supabase
+    .from("evento_processual")
+    .select("id, nome, descricao")
+    .eq("id", eventoId)
+    .is("tenant_id", null)
+    .maybeSingle();
+
+  if (fallbackError) {
+    throw fallbackError;
+  }
+
+  return fallback;
 }
 
 async function fetchEventosAtivos(tenantId) {
@@ -282,7 +227,20 @@ async function fetchEventosAtivos(tenantId) {
     throw error;
   }
 
-  return Array.isArray(data) ? data : [];
+  if (Array.isArray(data) && data.length) return data;
+
+  const { data: fallback, error: fallbackError } = await supabase
+    .from("evento_processual")
+    .select("id, nome")
+    .eq("ativo", true)
+    .is("tenant_id", null)
+    .order("nome", { ascending: true });
+
+  if (fallbackError) {
+    throw fallbackError;
+  }
+
+  return Array.isArray(fallback) ? fallback : [];
 }
 
 async function fetchAndamentoRules(tenantId, tipoMatch) {
@@ -294,7 +252,19 @@ async function fetchAndamentoRules(tenantId, tipoMatch) {
     throw error;
   }
 
-  return Array.isArray(data) ? data : [];
+  if (Array.isArray(data) && data.length) return data;
+
+  const { data: fallback, error: fallbackError } = await supabase
+    .from("andamento_evento")
+    .select("id, andamento_descricao, evento_id, tipo_match")
+    .eq("tipo_match", tipoMatch)
+    .is("tenant_id", null);
+
+  if (fallbackError) {
+    throw fallbackError;
+  }
+
+  return Array.isArray(fallback) ? fallback : [];
 }
 
 async function fetchModeloSugerido(providenciaId, tenantId) {
@@ -309,8 +279,25 @@ async function fetchModeloSugerido(providenciaId, tenantId) {
     throw error;
   }
 
-  if (!Array.isArray(data) || !data.length) return null;
-  return { id: data[0].id, nome: data[0].titulo };
+  if (Array.isArray(data) && data.length) {
+    return { id: data[0].id, nome: data[0].titulo };
+  }
+
+  const { data: fallback, error: fallbackError } = await supabase
+    .from("Modelos_Peticao")
+    .select("id, titulo")
+    .eq("providencia_id", providenciaId)
+    .eq("ativo", true)
+    .is("tenant_id", null)
+    .order("created_at", { ascending: true })
+    .limit(1);
+
+  if (fallbackError) {
+    throw fallbackError;
+  }
+
+  if (!Array.isArray(fallback) || !fallback.length) return null;
+  return { id: fallback[0].id, nome: fallback[0].titulo };
 }
 
 async function buildProvidenciaSugestao(rule, dataPublicacao, tenantId) {
@@ -369,7 +356,38 @@ async function fetchProvidenciasByEvento(eventoId, dataPublicacao, tenantId) {
     throw error;
   }
 
-  const rules = Array.isArray(data) ? data : [];
+  let rules = Array.isArray(data) ? data : [];
+  if (!rules.length) {
+    const { data: fallback, error: fallbackError } = await supabase
+      .from("evento_providencia")
+      .select(
+        `id,
+        prioridade,
+        gera_prazo,
+        prazo_dias,
+        tipo_prazo,
+        padrao,
+        observacao_juridica,
+        providencia_id,
+        providencia_juridica (
+          id,
+          nome,
+          descricao,
+          exige_peticao,
+          ativo
+        )`
+      )
+      .eq("evento_id", eventoId)
+      .is("tenant_id", null)
+      .order("prioridade", { ascending: true });
+
+    if (fallbackError) {
+      throw fallbackError;
+    }
+
+    rules = Array.isArray(fallback) ? fallback : [];
+  }
+
   if (!rules.length) {
     return { padrao: null, alternativas: [] };
   }
@@ -534,21 +552,6 @@ export async function confirmarAnaliseEventoProvidencia({
     const item = await fetchItemForUpdate(client, itemId, tenantId);
     ensureItemIsPendente(item);
 
-    const processoId = await fetchProcessoId(client, item?.numero_processo, tenantId);
-    const statusId = await fetchStatusId(client);
-    const dataLimite = resolveTaskDeadline({
-      prazoFinal,
-      item,
-      sugestao,
-    });
-    const ownerId = responsavelId || userId;
-
-    if (!ownerId) {
-      const error = new Error("Responsável não encontrado para a tarefa.");
-      error.statusCode = 422;
-      throw error;
-    }
-
     const auditoriaPayload = buildAuditoriaPayload({ sugestao, decisaoFinal });
     const prazoSugestaoJson = sugestao?.providencia_padrao?.prazo_sugerido
       ? JSON.stringify(sugestao.providencia_padrao.prazo_sugerido)
@@ -581,34 +584,6 @@ export async function confirmarAnaliseEventoProvidencia({
       `,
       [itemId, tenantId]
     );
-
-    const tarefaResult = await client.query(
-      `
-        insert into tarefa_fila_trabalho
-          (processo_id, evento_id, providencia_id, responsavel_id, status_id, data_limite, tenant_id)
-        values ($1, $2, $3, $4, $5, $6, $7)
-        returning id
-      `,
-      [processoId, eventoId, providenciaId, ownerId, statusId, dataLimite, tenantId]
-    );
-
-    const tarefaId = tarefaResult.rows?.[0]?.id;
-    if (!tarefaId) {
-      const error = new Error("Falha ao criar tarefa na fila de trabalho.");
-      error.statusCode = 500;
-      throw error;
-    }
-
-    const checklistItems = await fetchProvidenciaChecklist(
-      client,
-      providenciaId,
-      tenantId
-    );
-    await insertChecklistItems(client, {
-      tarefaId,
-      tenantId,
-      items: checklistItems,
-    });
 
     return { message: "Decisão registrada com sucesso." };
   });
