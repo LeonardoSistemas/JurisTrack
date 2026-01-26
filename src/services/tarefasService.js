@@ -78,6 +78,23 @@ function assertChecklistDoneFlag(done) {
   }
 }
 
+async function fetchTaskProcessId(taskId, tenantId) {
+  const { rows } = await pool.query(
+    `
+      select t.processo_id
+      from tarefa_fila_trabalho t
+      inner join processos p on p.idprocesso = t.processo_id
+      where t.id = $1
+        and t.tenant_id = $2
+        and p.tenant_id = $2
+      limit 1
+    `,
+    [taskId, tenantId]
+  );
+
+  return rows?.[0]?.processo_id ?? null;
+}
+
 async function fetchTaskProtocolData(taskId, tenantId) {
   const { rows } = await pool.query(
     `
@@ -205,7 +222,7 @@ async function fetchStatusByPayload({ statusId, statusName }) {
         and ativo = true
         and (
           ($2::uuid is not null and id = $2::uuid)
-          or ($3 is not null and lower(nome) = lower($3))
+          or ($3::text is not null and lower(nome) = lower($3::text))
         )
       limit 1
     `,
@@ -730,4 +747,74 @@ export async function protocolTask({ taskId, tenantId, file }) {
     task: await getTaskById(taskId, tenantId),
     documento: uploadResult,
   };
+}
+
+export async function listPublicacoesByTaskId({ taskId, tenantId, limit = 20 }) {
+  assertTenantId(tenantId);
+  assertTaskId(taskId);
+
+  const processoId = await fetchTaskProcessId(taskId, tenantId);
+  if (!processoId) {
+    const error = new Error("Tarefa não encontrada.");
+    error.statusCode = 404;
+    throw error;
+  }
+
+  const safeLimit = Number.isFinite(limit) ? Math.min(Math.max(limit, 1), 50) : 20;
+
+  const { rows } = await pool.query(
+    `
+      select
+        id,
+        texto_integral,
+        data_publicacao
+      from "Publicacao"
+      where processoid = $1
+        and tenant_id = $2
+      order by data_publicacao desc nulls last
+      limit $3::int
+    `,
+    [processoId, tenantId, safeLimit]
+  );
+
+  return rows.map((row) => ({
+    id: row.id,
+    texto_integral: row.texto_integral,
+    data_publicacao: row.data_publicacao,
+  }));
+}
+
+export async function listAndamentosByTaskId({ taskId, tenantId, limit = 20 }) {
+  assertTenantId(tenantId);
+  assertTaskId(taskId);
+
+  const processoId = await fetchTaskProcessId(taskId, tenantId);
+  if (!processoId) {
+    const error = new Error("Tarefa não encontrada.");
+    error.statusCode = 404;
+    throw error;
+  }
+
+  const safeLimit = Number.isFinite(limit) ? Math.min(Math.max(limit, 1), 50) : 20;
+
+  const { rows } = await pool.query(
+    `
+      select
+        id,
+        descricao,
+        data_evento
+      from "Andamento"
+      where "processoId" = $1
+        and tenant_id = $2
+      order by data_evento desc nulls last
+      limit $3::int
+    `,
+    [processoId, tenantId, safeLimit]
+  );
+
+  return rows.map((row) => ({
+    id: row.id,
+    descricao: row.descricao,
+    data_evento: row.data_evento,
+  }));
 }

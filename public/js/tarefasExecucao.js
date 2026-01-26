@@ -1,5 +1,9 @@
 const AUTH_TOKEN_KEY = "juristrack_token";
 const USER_ID_KEY = "juristrack_userId";
+const CONTEXT_LIMIT = 20;
+const FEEDBACK_TIMEOUT_MS = 5000;
+
+let feedbackTimer = null;
 const STATUS_FLOW = [
   "Aguardando",
   "Em Elaboração",
@@ -16,12 +20,16 @@ const ELEMENTS = {
   due: document.getElementById("task-due"),
   feedback: document.getElementById("execucao-feedback"),
   statusFlow: document.getElementById("status-flow"),
-  contextProcesso: document.getElementById("context-processo"),
-  contextProcessoMeta: document.getElementById("context-processo-meta"),
+  contextProcessoNumero: document.getElementById("context-processo-numero"),
+  contextProcessoAssunto: document.getElementById("context-processo-assunto"),
+  contextProcessoPasta: document.getElementById("context-processo-pasta"),
   contextEvento: document.getElementById("context-evento"),
   contextEventoDescricao: document.getElementById("context-evento-descricao"),
   contextProvidencia: document.getElementById("context-providencia"),
   contextProvidenciaDescricao: document.getElementById("context-providencia-descricao"),
+  contextPublicacoes: document.getElementById("context-publicacoes"),
+  contextAndamentos: document.getElementById("context-andamentos"),
+  contextDocumentos: document.getElementById("context-documentos"),
   checklistList: document.getElementById("checklist-list"),
   checklistEmpty: document.getElementById("checklist-empty"),
   checklistProgress: document.getElementById("checklist-progress"),
@@ -37,6 +45,16 @@ const state = {
   taskId: null,
   task: null,
   checklist: [],
+  contextLoaded: {
+    publicacoes: false,
+    andamentos: false,
+    documentos: false,
+  },
+  contextLoading: {
+    publicacoes: false,
+    andamentos: false,
+    documentos: false,
+  },
 };
 
 function showFeedback(message, variant = "danger") {
@@ -45,10 +63,26 @@ function showFeedback(message, variant = "danger") {
   if (!message) {
     feedback.classList.add("d-none");
     feedback.textContent = "";
+    if (feedbackTimer) {
+      clearTimeout(feedbackTimer);
+      feedbackTimer = null;
+    }
     return;
   }
-  feedback.textContent = message;
-  feedback.className = `alert alert-${variant} mb-3`;
+  feedback.innerHTML = `
+    <div>${message}</div>
+    <button type="button" class="btn-close" aria-label="Fechar"></button>
+  `;
+  feedback.className = `alert alert-${variant} alert-dismissible mb-3`;
+  feedback.classList.remove("d-none");
+
+  const closeButton = feedback.querySelector(".btn-close");
+  closeButton?.addEventListener("click", () => showFeedback(null));
+
+  if (feedbackTimer) {
+    clearTimeout(feedbackTimer);
+  }
+  feedbackTimer = setTimeout(() => showFeedback(null), FEEDBACK_TIMEOUT_MS);
 }
 
 function getAuthHeaders(isJson = true) {
@@ -146,13 +180,14 @@ function setHeader(task) {
 
 function setContext(task) {
   if (!task) return;
-  if (ELEMENTS.contextProcesso) {
-    ELEMENTS.contextProcesso.textContent = task.processo?.numero || "--";
+  if (ELEMENTS.contextProcessoNumero) {
+    ELEMENTS.contextProcessoNumero.textContent = task.processo?.numero || "--";
   }
-  if (ELEMENTS.contextProcessoMeta) {
-    const assunto = task.processo?.assunto || "Assunto nao informado";
-    const pasta = task.processo?.pasta || "Pasta nao informada";
-    ELEMENTS.contextProcessoMeta.textContent = `${assunto} · ${pasta}`;
+  if (ELEMENTS.contextProcessoAssunto) {
+    ELEMENTS.contextProcessoAssunto.textContent = task.processo?.assunto || "Assunto nao informado";
+  }
+  if (ELEMENTS.contextProcessoPasta) {
+    ELEMENTS.contextProcessoPasta.textContent = task.processo?.pasta || "Pasta nao informada";
   }
   if (ELEMENTS.contextEvento) {
     ELEMENTS.contextEvento.textContent = task.evento?.nome || "--";
@@ -166,6 +201,267 @@ function setContext(task) {
   if (ELEMENTS.contextProvidenciaDescricao) {
     ELEMENTS.contextProvidenciaDescricao.textContent =
       task.providencia?.descricao || "Sem orientacoes cadastradas.";
+  }
+
+  setContextPlaceholder(ELEMENTS.contextDocumentos, "Abra para carregar os documentos.");
+}
+
+function resetLazyContextSections() {
+  state.contextLoaded.publicacoes = false;
+  state.contextLoaded.andamentos = false;
+  state.contextLoaded.documentos = false;
+  state.contextLoading.publicacoes = false;
+  state.contextLoading.andamentos = false;
+  state.contextLoading.documentos = false;
+  setContextPlaceholder(ELEMENTS.contextPublicacoes, "Abra para carregar as publicacoes.");
+  setContextPlaceholder(ELEMENTS.contextAndamentos, "Abra para carregar os andamentos.");
+  setContextPlaceholder(ELEMENTS.contextDocumentos, "Abra para carregar os documentos.");
+}
+
+function setContextPlaceholder(target, text) {
+  if (!target) return;
+  target.innerHTML = "";
+  const placeholder = document.createElement("span");
+  placeholder.className = "text-muted small";
+  placeholder.textContent = text;
+  target.appendChild(placeholder);
+}
+
+function setContextLoading(target, text) {
+  if (!target) return;
+  target.innerHTML = `
+    <div class="d-flex align-items-center gap-2 text-muted small">
+      <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+      <span>${text}</span>
+    </div>
+  `;
+}
+
+function renderContextList(target, items, emptyText, itemFormatter) {
+  if (!target) return;
+  const list = Array.isArray(items) ? items : [];
+  target.innerHTML = "";
+  if (!list.length) {
+    const placeholder = document.createElement("span");
+    placeholder.className = "text-muted small";
+    placeholder.textContent = emptyText;
+    target.appendChild(placeholder);
+    return;
+  }
+  const ul = document.createElement("ul");
+  ul.className = "context-list";
+  list.forEach((item) => {
+    const li = document.createElement("li");
+    if (itemFormatter) {
+      li.textContent = itemFormatter(item);
+    } else if (typeof item === "string") {
+      li.textContent = item;
+    } else {
+      li.textContent =
+        item?.titulo ||
+        item?.nome ||
+        item?.descricao ||
+        item?.texto ||
+        item?.arquivo_nome ||
+        "Item";
+    }
+    ul.appendChild(li);
+  });
+  target.appendChild(ul);
+}
+
+function renderContextTable(target, items, emptyText, columns) {
+  if (!target) return;
+  const list = Array.isArray(items) ? items : [];
+  target.innerHTML = "";
+  if (!list.length) {
+    const placeholder = document.createElement("span");
+    placeholder.className = "text-muted small";
+    placeholder.textContent = emptyText;
+    target.appendChild(placeholder);
+    return;
+  }
+
+  const tableWrapper = document.createElement("div");
+  tableWrapper.className = "table-responsive context-table";
+
+  const table = document.createElement("table");
+  table.className = "table table-sm align-middle mb-0";
+
+  const thead = document.createElement("thead");
+  const headRow = document.createElement("tr");
+  columns.forEach((column) => {
+    const th = document.createElement("th");
+    th.scope = "col";
+    th.textContent = column.label;
+    headRow.appendChild(th);
+  });
+  thead.appendChild(headRow);
+
+  const tbody = document.createElement("tbody");
+  list.forEach((item) => {
+    const row = document.createElement("tr");
+    columns.forEach((column) => {
+      const td = document.createElement("td");
+      const value = column.render(item);
+      if (column.html) {
+        td.innerHTML = value ?? "--";
+      } else {
+        td.textContent = value ?? "--";
+      }
+      row.appendChild(td);
+    });
+    tbody.appendChild(row);
+  });
+
+  table.appendChild(thead);
+  table.appendChild(tbody);
+  tableWrapper.appendChild(table);
+  target.appendChild(tableWrapper);
+}
+
+function formatPublicacaoItem(item) {
+  if (!item) return "Publicacao";
+  const dateLabel = formatDate(item.data_publicacao);
+  const texto =
+    item.texto_integral ||
+    item.texto ||
+    item.descricao ||
+    item.titulo ||
+    "Publicacao";
+  return `${dateLabel} · ${texto}`;
+}
+
+function formatAndamentoItem(item) {
+  if (!item) return "Andamento";
+  const dateLabel = formatDate(item.data_evento);
+  const texto =
+    item.descricao ||
+    item.texto ||
+    item.titulo ||
+    "Andamento";
+  return `${dateLabel} · ${texto}`;
+}
+
+async function loadContextPublicacoes() {
+  if (!state.taskId || state.contextLoaded.publicacoes || state.contextLoading.publicacoes) return;
+  state.contextLoading.publicacoes = true;
+  setContextLoading(ELEMENTS.contextPublicacoes, "Carregando publicacoes...");
+  try {
+    const items = await fetchJson(
+      `/api/tarefas/${state.taskId}/publicacoes?limit=${CONTEXT_LIMIT}`
+    );
+    renderContextTable(
+      ELEMENTS.contextPublicacoes,
+      Array.isArray(items) ? items : [],
+      "Sem publicacoes registradas.",
+      [
+        {
+          label: "Data",
+          render: (item) => formatDate(item?.data_publicacao),
+        },
+        {
+          label: "Publicacao",
+          render: (item) =>
+            item?.texto_integral ||
+            item?.texto ||
+            item?.descricao ||
+            item?.titulo ||
+            "Publicacao",
+        },
+      ]
+    );
+    state.contextLoaded.publicacoes = true;
+  } catch (error) {
+    setContextPlaceholder(
+      ELEMENTS.contextPublicacoes,
+      error.message || "Erro ao carregar publicacoes."
+    );
+  } finally {
+    state.contextLoading.publicacoes = false;
+  }
+}
+
+async function loadContextAndamentos() {
+  if (!state.taskId || state.contextLoaded.andamentos || state.contextLoading.andamentos) return;
+  state.contextLoading.andamentos = true;
+  setContextLoading(ELEMENTS.contextAndamentos, "Carregando andamentos...");
+  try {
+    const items = await fetchJson(
+      `/api/tarefas/${state.taskId}/andamentos?limit=${CONTEXT_LIMIT}`
+    );
+    renderContextTable(
+      ELEMENTS.contextAndamentos,
+      Array.isArray(items) ? items : [],
+      "Sem andamentos registrados.",
+      [
+        {
+          label: "Data",
+          render: (item) => formatDate(item?.data_evento),
+        },
+        {
+          label: "Andamento",
+          render: (item) =>
+            item?.descricao ||
+            item?.texto ||
+            item?.titulo ||
+            "Andamento",
+        },
+      ]
+    );
+    state.contextLoaded.andamentos = true;
+  } catch (error) {
+    setContextPlaceholder(
+      ELEMENTS.contextAndamentos,
+      error.message || "Erro ao carregar andamentos."
+    );
+  } finally {
+    state.contextLoading.andamentos = false;
+  }
+}
+
+async function loadContextDocumentos() {
+  if (!state.task?.processo?.id) {
+    setContextPlaceholder(ELEMENTS.contextDocumentos, "Processo nao informado.");
+    return;
+  }
+  if (state.contextLoaded.documentos || state.contextLoading.documentos) return;
+  state.contextLoading.documentos = true;
+  setContextLoading(ELEMENTS.contextDocumentos, "Carregando documentos...");
+  try {
+    const items = await fetchJson(`/upload/processo-doc/${state.task.processo.id}`);
+    renderContextTable(
+      ELEMENTS.contextDocumentos,
+      Array.isArray(items) ? items : [],
+      "Sem documentos anexados.",
+      [
+        {
+          label: "Arquivo",
+          html: true,
+          render: (item) => {
+            const nome = item?.nome_arquivo || "Arquivo";
+            const url = item?.url_publica || "#";
+            return `<a href="${url}" target="_blank" class="text-decoration-none">${nome}</a>`;
+          },
+        },
+        {
+          label: "Tipo",
+          render: (item) => item?.tipo || "Arquivo",
+        },
+        {
+          label: "Data",
+          render: (item) => formatDate(item?.data_upload),
+        },
+      ]
+    );
+    state.contextLoaded.documentos = true;
+  } catch (error) {
+    setContextPlaceholder(
+      ELEMENTS.contextDocumentos,
+      error.message || "Erro ao carregar documentos."
+    );
+  } finally {
+    state.contextLoading.documentos = false;
   }
 }
 
@@ -329,6 +625,7 @@ async function loadTask() {
   state.task = task;
   setHeader(task);
   setContext(task);
+  resetLazyContextSections();
   updateStatusFlow(task.status?.nome || "");
   renderStatusActions(task);
   updateProtocolState();
@@ -489,6 +786,13 @@ function bindEvents() {
   });
   ELEMENTS.protocolFile?.addEventListener("change", updateProtocolState);
   ELEMENTS.protocolSubmit?.addEventListener("click", handleProtocolSubmit);
+
+  const publicacoesPanel = document.getElementById("context-publicacoes-panel");
+  const andamentosPanel = document.getElementById("context-andamentos-panel");
+  const documentosPanel = document.getElementById("context-documentos-panel");
+  publicacoesPanel?.addEventListener("shown.bs.collapse", loadContextPublicacoes);
+  andamentosPanel?.addEventListener("shown.bs.collapse", loadContextAndamentos);
+  documentosPanel?.addEventListener("shown.bs.collapse", loadContextDocumentos);
 }
 
 document.addEventListener("DOMContentLoaded", async () => {

@@ -5,7 +5,9 @@ import {
   createChecklistItem,
   deleteChecklistItem,
   getTaskById,
+  listAndamentosByTaskId,
   listChecklistItems,
+  listPublicacoesByTaskId,
   listTasks,
   protocolTask,
   updateChecklistItem,
@@ -104,6 +106,13 @@ function validateAssignPayload(payload) {
   return errors;
 }
 
+function parseLimitParam(value, fallback = 20) {
+  if (value === undefined || value === null) return fallback;
+  const parsed = Number.parseInt(value, 10);
+  if (Number.isNaN(parsed) || parsed <= 0) return fallback;
+  return Math.min(parsed, 50);
+}
+
 export const list = async (req, res) => {
   if (!ensureTenantAuthorization(req, res)) return;
 
@@ -182,6 +191,62 @@ export const assign = async (req, res) => {
   } catch (error) {
     const status = error.statusCode || 500;
     logError("tarefas.controller.assign_error", "Erro ao atribuir tarefa", {
+      tenantId: req.tenantId,
+      userId: req.user?.id,
+      taskId,
+      error,
+    });
+    return res.status(status).json({ error: error.message });
+  }
+};
+
+export const listPublicacoes = async (req, res) => {
+  if (!ensureTenantAuthorization(req, res)) return;
+
+  const taskId = req.params?.id;
+  if (!taskId) {
+    logWarn("tarefas.controller.publicacoes_validation", "id é obrigatório.", {
+      tenantId: req.tenantId,
+      userId: req.user?.id,
+    });
+    return res.status(400).json({ error: "id é obrigatório." });
+  }
+
+  try {
+    const limit = parseLimitParam(req.query?.limit, 20);
+    const items = await listPublicacoesByTaskId({ taskId, tenantId: req.tenantId, limit });
+    return res.status(200).json(items);
+  } catch (error) {
+    const status = error.statusCode || 500;
+    logError("tarefas.controller.publicacoes_error", "Erro ao listar publicações", {
+      tenantId: req.tenantId,
+      userId: req.user?.id,
+      taskId,
+      error,
+    });
+    return res.status(status).json({ error: error.message });
+  }
+};
+
+export const listAndamentos = async (req, res) => {
+  if (!ensureTenantAuthorization(req, res)) return;
+
+  const taskId = req.params?.id;
+  if (!taskId) {
+    logWarn("tarefas.controller.andamentos_validation", "id é obrigatório.", {
+      tenantId: req.tenantId,
+      userId: req.user?.id,
+    });
+    return res.status(400).json({ error: "id é obrigatório." });
+  }
+
+  try {
+    const limit = parseLimitParam(req.query?.limit, 20);
+    const items = await listAndamentosByTaskId({ taskId, tenantId: req.tenantId, limit });
+    return res.status(200).json(items);
+  } catch (error) {
+    const status = error.statusCode || 500;
+    logError("tarefas.controller.andamentos_error", "Erro ao listar andamentos", {
       tenantId: req.tenantId,
       userId: req.user?.id,
       taskId,

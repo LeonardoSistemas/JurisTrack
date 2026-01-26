@@ -7,6 +7,8 @@ const router = Router();
 router.get("/", tarefasController.list);
 router.get("/:id", tarefasController.getDetails);
 router.patch("/:id/atribuir", tarefasController.assign);
+router.get("/:id/publicacoes", tarefasController.listPublicacoes);
+router.get("/:id/andamentos", tarefasController.listAndamentos);
 router.get("/:id/checklist", tarefasController.listChecklist);
 router.put("/:id/checklist/:itemId", tarefasController.updateChecklist);
 router.post("/:id/checklist", tarefasController.createChecklist);
