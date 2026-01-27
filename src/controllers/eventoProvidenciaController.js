@@ -18,6 +18,31 @@ function resolveConfirmMode(payload) {
   return hasSimilaridadeFields ? "similaridade" : "evento";
 }
 
+function normalizeUpstreamError(error, fallbackMessage) {
+  const rawMessage = typeof error?.message === "string" ? error.message : "";
+  const rawStatus = error?.statusCode || error?.status;
+  const looksHtml = /<html/i.test(rawMessage);
+  const isBadGateway =
+    rawStatus === 502 || /502\s+Bad\s+Gateway/i.test(rawMessage) || /cloudflare/i.test(rawMessage);
+
+  if (looksHtml || isBadGateway) {
+    return {
+      status: 503,
+      clientMessage: "Serviço de dados temporariamente indisponível. Tente novamente.",
+      logMessage: "Falha ao obter sugestão: serviço indisponível.",
+      upstreamMessage: rawMessage || null,
+    };
+  }
+
+  const safeMessage = rawMessage || fallbackMessage;
+  return {
+    status: rawStatus || 500,
+    clientMessage: safeMessage,
+    logMessage: safeMessage,
+    upstreamMessage: null,
+  };
+}
+
 function validateConfirmPayload(payload) {
   const errors = [];
 
@@ -57,8 +82,15 @@ function validateConfirmPayload(payload) {
     return errors;
   }
 
-  const { idItem, evento_id, providencia_id, prazo_final, modelo_id, observacao } =
-    payload;
+  const {
+    idItem,
+    evento_id,
+    providencia_id,
+    prazo_final,
+    modelo_id,
+    observacao,
+    responsavel_id,
+  } = payload;
 
   if (!isNonEmptyString(idItem)) {
     errors.push("idItem é obrigatório.");
@@ -88,6 +120,10 @@ function validateConfirmPayload(payload) {
     errors.push("observacao deve ser string.");
   }
 
+  if (responsavel_id != null && !isNonEmptyString(responsavel_id)) {
+    errors.push("responsavel_id deve ser string.");
+  }
+
   return errors;
 }
 
@@ -112,14 +148,20 @@ export const getSugestao = async (req, res) => {
     });
     return res.status(200).json(sugestao);
   } catch (error) {
-    const status = error.statusCode || 500;
-    logError("evento.controller.sugestao_error", error.message, {
+    const normalized = normalizeUpstreamError(
       error,
+      "Erro interno ao buscar sugestão."
+    );
+    const logErrorInstance =
+      error instanceof Error ? error : new Error(normalized.logMessage);
+    logError("evento.controller.sugestao_error", normalized.logMessage, {
+      error: logErrorInstance,
+      upstreamMessage: normalized.upstreamMessage,
       tenantId: req.tenantId,
       userId: req.user?.id,
       itemId: idItem,
     });
-    return res.status(status).json({ error: error.message });
+    return res.status(normalized.status).json({ error: normalized.clientMessage });
   }
 };
 
@@ -143,6 +185,7 @@ export const confirmar = async (req, res) => {
     prazo_final,
     modelo_id,
     observacao,
+    responsavel_id: responsavelId,
     item_similaridade_id,
     publicacao_id,
     decisao_final_json,
@@ -167,6 +210,7 @@ export const confirmar = async (req, res) => {
             prazoFinal: prazo_final,
             modeloId: modelo_id,
             observacao,
+            responsavelId,
             tenantId: req.tenantId,
             userId: req.user?.id,
           });

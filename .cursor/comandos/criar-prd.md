@@ -11,9 +11,9 @@
 
     ## Referência do Template
 
-    - Template fonte: `./docs/gerenciamento-eventos-providencias.md`
+    - Template fonte: `./docs/fila_de_trabalho.md`
     - Nome do arquivo final: `prd.md`
-    - Diretório final: `./tasks/prd-gerenciamento-eventos-providencias/` (nome em kebab-case)
+    - Diretório final: `./tasks/prd-fila-de-trabalho/` (nome em kebab-case)
 
     ## Fluxo de Trabalho
 

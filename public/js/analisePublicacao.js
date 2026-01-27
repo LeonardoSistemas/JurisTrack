@@ -22,6 +22,7 @@ function getModalElements() {
     prazoInfo: document.getElementById("analiseModalPrazoInfo"),
     prazoAviso: document.getElementById("analiseModalPrazoAviso"),
     modelo: document.getElementById("analiseModalModelo"),
+    responsavel: document.getElementById("analiseModalResponsavel"),
     observacao: document.getElementById("analiseModalObservacao"),
     observacaoJuridica: document.getElementById("analiseModalObservacaoJuridica"),
     salvar: document.getElementById("analiseModalSalvar"),
@@ -161,6 +162,47 @@ function buildProvidenciaOptions(padrao, alternativas) {
   return options.join("");
 }
 
+function buildResponsavelOptions(usuarios = []) {
+  const options = ['<option value="">Responsável padrão (usuário atual)</option>'];
+  const normalized = (usuarios || [])
+    .filter((usuario) => usuario?.id)
+    .map((usuario) => ({
+      id: usuario.id,
+      label:
+        usuario.nome && usuario.email
+          ? `${usuario.nome} (${usuario.email})`
+          : usuario.nome || usuario.email || "Usuário sem nome",
+    }))
+    .sort((a, b) => a.label.localeCompare(b.label, "pt-BR", { sensitivity: "base" }));
+
+  normalized.forEach((usuario) => {
+    options.push(`<option value="${usuario.id}">${usuario.label}</option>`);
+  });
+
+  return options.join("");
+}
+
+async function carregarResponsaveis() {
+  const { responsavel } = getModalElements();
+  if (!responsavel) return [];
+  responsavel.innerHTML = `<option value="">Carregando responsáveis...</option>`;
+
+  try {
+    const response = await authFetch("/api/users?status=ativo");
+    const body = await response.json().catch(() => []);
+    if (!response.ok) {
+      throw new Error(body?.message || body?.error || "Falha ao carregar responsáveis.");
+    }
+    const usuarios = Array.isArray(body) ? body : [];
+    responsavel.innerHTML = buildResponsavelOptions(usuarios);
+    return usuarios;
+  } catch (error) {
+    console.warn("[analise] falha ao carregar responsáveis", error);
+    responsavel.innerHTML = '<option value="">Responsável padrão (usuário atual)</option>';
+    return [];
+  }
+}
+
 function getItemById(id) {
   return analiseItens.find((item) => item?.id === id);
 }
@@ -206,6 +248,7 @@ function populateModalBase(item) {
     eventoId,
     processo,
     dataPublicacao,
+    responsavel,
   } = getModalElements();
   if (texto) texto.textContent = resolveTextoPublicacao(item);
   if (tipoAndamento) tipoAndamento.textContent = resolveTipoAndamento(item);
@@ -220,6 +263,7 @@ function populateModalBase(item) {
       ? formatarDataBR_SoData(item.data_publicacao)
       : "-";
   }
+  if (responsavel) responsavel.value = "";
 }
 
 function populateSugestoes(sugestao) {
@@ -279,6 +323,7 @@ async function salvarAnalise({ itemId, saveNext }) {
     prazoData,
     modelo,
     observacao,
+    responsavel,
   } = getModalElements();
 
   if (!currentPublicacaoId) {
@@ -297,6 +342,8 @@ async function salvarAnalise({ itemId, saveNext }) {
       }
     : null;
 
+  const responsavelId = responsavel?.value || null;
+
   const decisaoFinalJson = {
     item_similaridade_id: itemId,
     publicacao_id: currentPublicacaoId,
@@ -305,6 +352,7 @@ async function salvarAnalise({ itemId, saveNext }) {
     prazo_final: prazoFinal,
     modelo_id: modelo?.value || null,
     observacao: observacao?.value?.trim() || null,
+    responsavel_id: responsavelId,
   };
 
   const payload = {
@@ -312,6 +360,7 @@ async function salvarAnalise({ itemId, saveNext }) {
     publicacao_id: currentPublicacaoId,
     prazo_final: prazoFinal,
     decisao_final_json: decisaoFinalJson,
+    responsavel_id: responsavelId,
   };
 
   if (!decisaoFinalJson.evento_id || !decisaoFinalJson.providencia_id) {
@@ -441,8 +490,10 @@ export async function abrirModalAnalise(itemOrId) {
       throw new Error("Publicação vinculada não encontrada para este item.");
     }
     currentPublicacaoId = publicacaoId;
+    const responsaveisPromise = carregarResponsaveis();
     const sugestao = await carregarSugestoes(item.id);
     populateSugestoes(sugestao);
+    await responsaveisPromise;
     setFeedback(null);
     bootstrap.Modal.getOrCreateInstance(modal).show();
   } catch (error) {

@@ -13,13 +13,13 @@
     ## Template e Entradas
 
     - Template Tech Spec: `templates/techspec-template.md`
-    - PRD requerido: `tasks/prd-gerenciamento-eventos-providencias/prd.md`
-    - Documento de saída: `tasks/prd-gerenciamento-eventos-providencias/techspec.md`
+    - PRD requerido: `tasks/prd-fila-de-trabalho/prd.md`
+    - Documento de saída: `tasks/prd-fila-de-trabalho/techspec.md`
 
     ## Pré-requisitos
 
     - Revisar padrões do projeto em @.cursor/rules
-    - Confirmar que o PRD existe em `tasks/prd-gerenciamento-eventos-providencias/prd.md`
+    - Confirmar que o PRD existe em `tasks/prd-fila-de-trabalho/prd.md`
 
     ## Fluxo de Trabalho
 

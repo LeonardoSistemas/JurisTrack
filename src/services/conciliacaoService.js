@@ -2,6 +2,9 @@ import pool from "../config/postgresClient.js";
 import { gerarEmbedding } from "./embeddingService.js";
 import { logError, logWarn, logInfo } from "../utils/logger.js";
 
+const TASK_STATUS_DOMAIN = "tarefa_fila_trabalho";
+const TASK_STATUS_INITIAL = "Aguardando";
+
 function toPgVector(embeddingArray) {
   if (!Array.isArray(embeddingArray)) return null;
   return `[${embeddingArray.join(",")}]`;
@@ -190,6 +193,107 @@ function normalizeAuditoriaPayload(decisaoFinalJson) {
   if (decisaoFinalJson == null) return null;
   if (typeof decisaoFinalJson === "string") return decisaoFinalJson;
   return JSON.stringify(decisaoFinalJson);
+}
+
+function normalizeDecisaoFinalObject(decisaoFinalJson) {
+  if (!decisaoFinalJson) return null;
+  if (typeof decisaoFinalJson === "string") {
+    try {
+      return JSON.parse(decisaoFinalJson);
+    } catch {
+      return null;
+    }
+  }
+  if (typeof decisaoFinalJson === "object") {
+    return decisaoFinalJson;
+  }
+  return null;
+}
+
+async function fetchStatusId(client) {
+  const { rows } = await client.query(
+    `
+      select id
+      from aux_status
+      where nome = $1
+        and dominio = $2
+      limit 1
+    `,
+    [TASK_STATUS_INITIAL, TASK_STATUS_DOMAIN]
+  );
+
+  if (!rows?.length) {
+    const error = new Error("Status inicial da tarefa não encontrado.");
+    error.statusCode = 500;
+    throw error;
+  }
+
+  return rows[0].id;
+}
+
+async function fetchProcessoIdByPublicacao(client, publicacaoId, tenantId) {
+  const { rows } = await client.query(
+    `
+      select processoid
+      from "Publicacao"
+      where id = $1
+        and tenant_id = $2
+      limit 1
+    `,
+    [publicacaoId, tenantId]
+  );
+
+  const processoId = rows?.[0]?.processoid ?? null;
+  if (!processoId) {
+    const error = new Error("Processo não encontrado para a publicação.");
+    error.statusCode = 404;
+    throw error;
+  }
+
+  return processoId;
+}
+
+async function fetchProvidenciaChecklist(client, providenciaId, tenantId) {
+  const { rows } = await client.query(
+    `
+      select titulo, ordem, obrigatorio
+      from providencia_checklist
+      where providencia_id = $1
+        and tenant_id = $2
+      order by ordem asc
+    `,
+    [providenciaId, tenantId]
+  );
+
+  return rows ?? [];
+}
+
+async function insertChecklistItems(client, { tarefaId, tenantId, items }) {
+  if (!items.length) return;
+
+  const values = [];
+  const placeholders = items.map((item, index) => {
+    const baseIndex = index * 5;
+    values.push(
+      tarefaId,
+      item.titulo,
+      item.ordem ?? 0,
+      item.obrigatorio ?? true,
+      tenantId
+    );
+    return `($${baseIndex + 1}, $${baseIndex + 2}, $${baseIndex + 3}, $${
+      baseIndex + 4
+    }, $${baseIndex + 5})`;
+  });
+
+  await client.query(
+    `
+      insert into tarefa_checklist_item
+        (tarefa_id, titulo, ordem, obrigatorio, tenant_id)
+      values ${placeholders.join(", ")}
+    `,
+    values
+  );
 }
 
 async function ensureProcesso(client, { numero_processo, tenantId }) {
@@ -448,6 +552,19 @@ export async function confirmarAnaliseSimilaridade({
     throw error;
   }
 
+  const decisaoFinal = normalizeDecisaoFinalObject(decisaoFinalJson);
+  if (!decisaoFinal) {
+    const error = new Error("decisao_final_json inválido.");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  if (!decisaoFinal.evento_id || !decisaoFinal.providencia_id) {
+    const error = new Error("evento_id e providencia_id são obrigatórios.");
+    error.statusCode = 400;
+    throw error;
+  }
+
   return withTransaction(async (client) => {
     const item = await fetchItemForUpdate(client, itemSimilaridadeId, tenantId);
     ensureItemIsCadastradoSemPrazo(item);
@@ -507,17 +624,59 @@ export async function confirmarAnaliseSimilaridade({
       [itemSimilaridadeId, tenantId]
     );
 
+    const processoId = await fetchProcessoIdByPublicacao(client, publicacaoId, tenantId);
+    const statusId = await fetchStatusId(client);
+    const responsavelId = decisaoFinal.responsavel_id || userId;
+
+    const tarefaResult = await client.query(
+      `
+        insert into tarefa_fila_trabalho
+          (processo_id, evento_id, providencia_id, responsavel_id, status_id, data_limite, tenant_id)
+        values ($1, $2, $3, $4, $5, $6, $7)
+        returning id
+      `,
+      [
+        processoId,
+        decisaoFinal.evento_id,
+        decisaoFinal.providencia_id,
+        responsavelId,
+        statusId,
+        normalizedPrazo.data_vencimento,
+        tenantId,
+      ]
+    );
+
+    const tarefaId = tarefaResult.rows?.[0]?.id;
+    if (!tarefaId) {
+      const error = new Error("Falha ao criar tarefa na fila de trabalho.");
+      error.statusCode = 500;
+      throw error;
+    }
+
+    const checklistItems = await fetchProvidenciaChecklist(
+      client,
+      decisaoFinal.providencia_id,
+      tenantId
+    );
+    await insertChecklistItems(client, {
+      tarefaId,
+      tenantId,
+      items: checklistItems,
+    });
+
     logInfo("conciliacao.confirmar.sucesso", "Análise confirmada com prazo.", {
       tenantId,
       userId,
       itemSimilaridadeId,
       publicacaoId,
       auditoriaSugestaoId,
+      tarefaId,
     });
 
     return {
       message: "Análise confirmada com criação de prazo.",
       auditoriaSugestaoId,
+      tarefaId,
     };
   });
 }
