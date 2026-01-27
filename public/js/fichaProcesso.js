@@ -2,6 +2,7 @@
 let cachePublicacoes = [];
 let partesProcesso = [];
 let listaPessoasCache = [];
+let prazoStatusCache = [];
 
 const AUTH_TOKEN_KEY = "juristrack_token";
 function authFetch(url, options = {}) {
@@ -121,6 +122,7 @@ async function carregarDadosProcesso(id) {
         const res = await authFetch(`/api/processos/${id}`);
         if (!res.ok) throw new Error("Erro ao buscar processo");
         const proc = await res.json();
+        setPrazoStatusCache(proc.prazo_statuses);
 
         document.getElementById("headerNumProcesso").textContent = proc.numprocesso || "Sem Número";
         document.getElementById("IdProcesso").value = proc.idprocesso;
@@ -414,15 +416,94 @@ window.excluirProcesso = async function () {
     } catch (e) { console.error(e); }
 };
 
-function renderizarPrazos(proc) {
-    const tbody = document.querySelector("#tab-prazos tbody");
-    if (!tbody) return;
-    tbody.innerHTML = "";
+function setPrazoStatusCache(statuses) {
+    prazoStatusCache = Array.isArray(statuses) ? statuses : [];
+}
 
-    const prazosEncontrados = [];
+function normalizeStatusName(statusName) {
+    if (!statusName) return null;
+    return String(statusName)
+        .trim()
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/\s+/g, " ")
+        .trim();
+}
 
-    if (proc.Publicacao && Array.isArray(proc.Publicacao)) {
-        proc.Publicacao.forEach(pub => {
+function formatStatusLabel(statusName) {
+    const normalized = normalizeStatusName(statusName);
+    const labels = {
+        pendente: "Pendente",
+        concluido: "Concluído",
+        cancelado: "Cancelado",
+        "em atraso": "Em atraso",
+        suspenso: "Suspenso"
+    };
+
+    if (normalized && labels[normalized]) return labels[normalized];
+    if (statusName) return String(statusName).trim();
+    return "Pendente";
+}
+
+function getStatusBadgeClass(normalizedStatus) {
+    const statusClasses = {
+        pendente: "bg-secondary",
+        concluido: "bg-success",
+        cancelado: "bg-danger",
+        "em atraso": "bg-warning text-dark",
+        suspenso: "bg-info text-dark"
+    };
+
+    return statusClasses[normalizedStatus] || "bg-secondary";
+}
+
+function getStatusNameById(statusId) {
+    if (!statusId || prazoStatusCache.length === 0) return null;
+    const found = prazoStatusCache.find((status) => status.id === statusId);
+    return found?.nome || null;
+}
+
+function getPrazoStatusName(prazo) {
+    if (!prazo) return null;
+    if (prazo.status?.nome) return prazo.status.nome;
+    if (prazo.status_nome) return prazo.status_nome;
+    if (prazo.status) return prazo.status;
+
+    const statusId = prazo.status?.id || prazo.status_id;
+    return getStatusNameById(statusId);
+}
+
+function formatPrazoDate(value) {
+    if (!value) return "Sem data";
+    const rawValue = String(value);
+    if (rawValue.includes("T")) {
+        return new Date(rawValue).toLocaleDateString("pt-BR", { timeZone: "UTC" });
+    }
+    const [year, month, day] = rawValue.split("-");
+    if (year && month && day) return `${day}/${month}/${year}`;
+    return rawValue;
+}
+
+function collectPrazosFromProcesso(proc) {
+    const prazos = [];
+    const rootPrazos = Array.isArray(proc?.Prazo)
+        ? proc.Prazo
+        : proc?.Prazo
+            ? [proc.Prazo]
+            : Array.isArray(proc?.prazos)
+                ? proc.prazos
+                : [];
+
+    rootPrazos.forEach((prazo) => {
+        const responsavel = prazo?.responsavel?.nome ? prazo.responsavel.nome : "Sistema";
+        prazos.push({ ...prazo, responsavel });
+    });
+
+    if (prazos.length > 0) return prazos;
+
+    if (proc?.Publicacao && Array.isArray(proc.Publicacao)) {
+        proc.Publicacao.forEach((pub) => {
             let listaPrazos = [];
             if (Array.isArray(pub.Prazo)) {
                 listaPrazos = pub.Prazo;
@@ -431,53 +512,140 @@ function renderizarPrazos(proc) {
             }
 
             if (listaPrazos.length > 0) {
-                listaPrazos.forEach(prazo => {
-                    let nomeResponsavel = "Sistema";
-                    if (prazo.responsavel && prazo.responsavel.nome) {
-                        nomeResponsavel = prazo.responsavel.nome;
-                    }
-                    prazosEncontrados.push({ ...prazo, responsavel: nomeResponsavel });
+                listaPrazos.forEach((prazo) => {
+                    const responsavel = prazo?.responsavel?.nome ? prazo.responsavel.nome : "Sistema";
+                    prazos.push({ ...prazo, responsavel });
                 });
             }
         });
     }
 
+    return prazos;
+}
+
+function buildPrazoStatusBadge(prazo) {
+    const statusName = getPrazoStatusName(prazo);
+    const normalized = normalizeStatusName(statusName) || "pendente";
+    const label = formatStatusLabel(statusName);
+    const badgeClass = getStatusBadgeClass(normalized);
+    return `<span class="badge ${badgeClass}" data-prazo-status-badge>${label}</span>`;
+}
+
+function buildPrazoStatusSelect(prazo) {
+    if (!prazoStatusCache.length) {
+        return `<select class="form-select form-select-sm" disabled><option>Sem status</option></select>`;
+    }
+
+    const currentStatusId = prazo?.status?.id || prazo?.status_id || "";
+    const options = prazoStatusCache
+        .map((status) => {
+            const isSelected = status.id === currentStatusId;
+            return `<option value="${status.id}"${isSelected ? " selected" : ""}>${formatStatusLabel(status.nome)}</option>`;
+        })
+        .join("");
+
+    const placeholder = currentStatusId ? "" : '<option value="" selected disabled>Selecione...</option>';
+    return `
+        <select class="form-select form-select-sm" data-current-status="${currentStatusId}" onchange="atualizarStatusPrazo('${prazo.id}', this.value, this)">
+            ${placeholder}
+            ${options}
+        </select>
+    `;
+}
+
+function buildPrazoActions(prazo) {
+    const publicacaoId = prazo?.publicacaoid || prazo?.publicacaoId;
+    if (!publicacaoId) {
+        return '<span class="text-muted">--</span>';
+    }
+    return `
+        <button type="button" class="btn btn-sm btn-outline-primary" onclick="verPublicacao('${publicacaoId}')">
+            <i class="fas fa-eye"></i>
+        </button>
+    `;
+}
+
+window.atualizarStatusPrazo = async function (prazoId, statusId, selectEl) {
+    if (!prazoId || !statusId) return;
+
+    const select = selectEl;
+    const previousValue = select?.getAttribute("data-current-status") || "";
+
+    if (select) {
+        select.disabled = true;
+    }
+
+    try {
+        const res = await authFetch(`/api/processos/prazo/${prazoId}/status`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ statusId })
+        });
+
+        if (!res.ok) {
+            const err = await res.json();
+            throw new Error(err.error || "Erro ao atualizar status.");
+        }
+
+        await res.json();
+
+        if (select) {
+            select.setAttribute("data-current-status", statusId);
+        }
+
+        const row = select?.closest("tr");
+        const badge = row?.querySelector("[data-prazo-status-badge]");
+        if (badge) {
+            const statusName = getStatusNameById(statusId);
+            const normalized = normalizeStatusName(statusName) || "pendente";
+            badge.className = `badge ${getStatusBadgeClass(normalized)}`;
+            badge.textContent = formatStatusLabel(statusName);
+        }
+    } catch (error) {
+        if (select && previousValue) {
+            select.value = previousValue;
+        }
+        alert(error.message || "Erro ao atualizar status.");
+        console.error(error);
+    } finally {
+        if (select) {
+            select.disabled = false;
+        }
+    }
+};
+
+function renderizarPrazos(proc) {
+    const tbody = document.getElementById("tabelaPrazos");
+    if (!tbody) return;
+    tbody.innerHTML = "";
+
+    const prazosEncontrados = collectPrazosFromProcesso(proc);
+
     if (prazosEncontrados.length === 0) {
         tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">Nenhum prazo cadastrado</td></tr>';
         return;
     }
-    prazosEncontrados.sort((a, b) => new Date(a.data_limite) - new Date(b.data_limite));
+    prazosEncontrados.sort((a, b) => new Date(a.data_limite || 0) - new Date(b.data_limite || 0));
     prazosEncontrados.forEach(p => {
-        let dataVenc = 'Sem data';
-        if (p.data_limite) {
-            if (p.data_limite.includes('T')) {
-                dataVenc = new Date(p.data_limite).toLocaleDateString('pt-BR', { timeZone: 'UTC' });
-            } else {
-                const [ano, mes, dia] = p.data_limite.split('-');
-                dataVenc = `${dia}/${mes}/${ano}`;
-            }
-        }
-
-        const hoje = new Date();
-        hoje.setHours(0, 0, 0, 0);
-
-        let dataLimiteObj = null;
-        if (p.data_limite) {
-            const [ano, mes, dia] = p.data_limite.split('T')[0].split('-');
-            dataLimiteObj = new Date(ano, mes - 1, dia);
-        }
-
-        let statusBadge = '<span class="badge bg-secondary">Pendente</span>';
-        if (dataLimiteObj && dataLimiteObj < hoje) {
-            statusBadge = '<span class="badge bg-danger">Vencido</span>';
-        } else if (dataLimiteObj) {
-            statusBadge = '<span class="badge bg-warning text-dark">Em Aberto</span>';
-        }
-
-        let respHtml = p.responsavel === "Sistema" ? `<span class="badge bg-light text-dark border">Sistema</span>` : `<span class="badge bg-info text-dark">${p.responsavel}</span>`;
-
+        const dataVenc = formatPrazoDate(p.data_limite);
+        const statusBadge = buildPrazoStatusBadge(p);
+        const statusSelect = buildPrazoStatusSelect(p);
+        const respHtml = p.responsavel === "Sistema"
+            ? `<span class="badge bg-light text-dark border">Sistema</span>`
+            : `<span class="badge bg-info text-dark">${p.responsavel}</span>`;
         const tr = document.createElement("tr");
-        tr.innerHTML = `<td>${p.descricao || "Prazo processual"}</td><td class="fw-bold">${dataVenc}</td><td>${respHtml}</td><td>${statusBadge}</td><td class="text-end"><button type="button" class="btn btn-sm btn-outline-primary" onclick="verPublicacao('${p.publicacaoid}')"><i class="fas fa-eye"></i></button></td>`;
+        tr.innerHTML = `
+            <td>${p.descricao || "Prazo processual"}</td>
+            <td class="fw-bold">${dataVenc}</td>
+            <td>${respHtml}</td>
+            <td>
+                <div class="d-flex flex-column gap-1">
+                    ${statusBadge}
+                    ${statusSelect}
+                </div>
+            </td>
+            <td class="text-end">${buildPrazoActions(p)}</td>
+        `;
         tbody.appendChild(tr);
     });
 }

@@ -66,6 +66,18 @@ async function fetchPrazoStatusById(statusId) {
   return data.id;
 }
 
+async function fetchPrazoStatuses() {
+  const { data, error } = await supabase
+    .from("aux_status")
+    .select("id, nome, cor_hex")
+    .eq("dominio", PRAZO_STATUS_DOMAIN)
+    .eq("ativo", true)
+    .order("nome", { ascending: true });
+
+  if (error) throw error;
+  return data ?? [];
+}
+
 function normalizeProcessoPayload(dados) {
   if (!dados || typeof dados !== "object") return {};
   const payload = { ...dados };
@@ -133,7 +145,7 @@ export const listarProcessos = async (filtros, tenantId) => {
 };
 
 export const obterProcessoCompleto = async (id, tenantId) => {
-  const { data, error } = await withTenantFilter("processos", tenantId)
+  const processoQuery = withTenantFilter("processos", tenantId)
     .select(`
       *,
       cidades ( idcidade, descricao, idestado ),
@@ -169,11 +181,21 @@ export const obterProcessoCompleto = async (id, tenantId) => {
     .eq("idprocesso", id)
     .maybeSingle();
 
+  const [{ data, error }, prazoStatuses] = await Promise.all([
+    processoQuery,
+    fetchPrazoStatuses(),
+  ]);
+
   if (error) {
     console.error("ERRO SUPABASE:", error); // Verifique o terminal do VS Code/Node
     throw error;
   }
-  return data;
+
+  if (!data) return data;
+  return {
+    ...data,
+    prazo_statuses: prazoStatuses,
+  };
 };
 
 export const criarProcesso = async (dados, tenantId) => {
