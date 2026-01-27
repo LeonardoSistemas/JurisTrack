@@ -1,6 +1,25 @@
 import supabase from "../config/supabase.js";
 import { injectTenant, withTenantFilter } from "../repositories/tenantScope.js";
 
+const PRAZO_STATUS_DOMAIN = "prazo";
+const PRAZO_STATUS_DEFAULT = "pendente";
+
+async function fetchDefaultPrazoStatusId() {
+  const { data, error } = await supabase
+    .from("aux_status")
+    .select("id")
+    .eq("nome", PRAZO_STATUS_DEFAULT)
+    .eq("dominio", PRAZO_STATUS_DOMAIN)
+    .maybeSingle();
+
+  if (error) throw error;
+  if (!data?.id) {
+    throw new Error("Default prazo status not found.");
+  }
+
+  return data.id;
+}
+
 function normalizeProcessoPayload(dados) {
   if (!dados || typeof dados !== "object") return {};
   const payload = { ...dados };
@@ -83,15 +102,15 @@ export const obterProcessoCompleto = async (id, tenantId) => {
       moeda:moedas ( idmoeda, descricao ),
       partes:processo_partes ( id, tipo_parte, pessoas ( idpessoa, nome, cpf_cnpj ) ),
       advogado:pessoas!fk_processos_advogado ( idpessoa, nome ),
+      Prazo!prazo_processoid_fkey (
+        *,
+        responsavel:users!Prazo_responsavelId_fkey ( nome )
+      ),
 
       Publicacao!"publicacao_processoid_fkey" (
         id,
         texto_integral,
         data_publicacao,
-        Prazo ( 
-          *, 
-          responsavel:users!Prazo_responsavelId_fkey ( nome ) 
-        ),
         Andamento!andamento_publicacaoid_fkey ( * ),
         Historico_Peticoes!historico_peticoes_publicacao_id_fkey ( * )
       ),
@@ -243,35 +262,17 @@ export const obterContextoParaModelo = async (idProcesso, tenantId) => {
 };
 
 export const criarPrazoManual = async (dados, tenantId) => {
-  const payload = injectTenant(dados, tenantId);
-
-  // Remove campos de controle interno que não vão pro banco
-  delete payload.processoId;
-
-  // Passo 1: Criar Publicação Manual
-  const publicacaoPayload = {
-    processoid: dados.processoId,
-    data_publicacao: new Date(),
-    texto_integral: dados.descricao, // Salva apenas a descrição pura, sem prefixos, conforme solicitado
-    tenant_id: tenantId
-  };
-
-  const { data: pubData, error: pubError } = await supabase
-    .from("Publicacao")
-    .insert([publicacaoPayload])
-    .select()
-    .single();
-
-  if (pubError) throw pubError;
-
-  // Passo 2: Criar o Prazo linkado
-  const prazoPayload = {
-    descricao: "Prazo Manual", // Salva fixo como solicitado
-    data_limite: dados.data_limite,
-    publicacaoid: pubData.id,
-    responsavelId: dados.responsavelId ? dados.responsavelId : null,
-    tenant_id: tenantId
-  };
+  const statusId = dados.status_id ?? (await fetchDefaultPrazoStatusId());
+  const prazoPayload = injectTenant(
+    {
+      descricao: dados.descricao,
+      data_limite: dados.data_limite,
+      processoid: dados.processoId,
+      status_id: statusId,
+      responsavelId: dados.responsavelId ?? null,
+    },
+    tenantId
+  );
 
   const { data, error } = await supabase
     .from("Prazo")
