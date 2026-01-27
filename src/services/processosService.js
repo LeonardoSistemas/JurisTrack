@@ -4,6 +4,24 @@ import { injectTenant, withTenantFilter } from "../repositories/tenantScope.js";
 const PRAZO_STATUS_DOMAIN = "prazo";
 const PRAZO_STATUS_DEFAULT = "pendente";
 
+function assertPrazoStatusPayload({ prazoId, statusId, usuarioId }) {
+  if (!prazoId) {
+    const error = new Error("prazoId é obrigatório.");
+    error.statusCode = 400;
+    throw error;
+  }
+  if (!statusId) {
+    const error = new Error("statusId é obrigatório.");
+    error.statusCode = 400;
+    throw error;
+  }
+  if (!usuarioId) {
+    const error = new Error("usuarioId é obrigatório.");
+    error.statusCode = 401;
+    throw error;
+  }
+}
+
 async function fetchDefaultPrazoStatusId() {
   const { data, error } = await supabase
     .from("aux_status")
@@ -17,6 +35,34 @@ async function fetchDefaultPrazoStatusId() {
     throw new Error("Default prazo status not found.");
   }
 
+  return data.id;
+}
+
+async function fetchPrazoSnapshot(prazoId, tenantId) {
+  const { data, error } = await withTenantFilter("Prazo", tenantId)
+    .select("*")
+    .eq("id", prazoId)
+    .maybeSingle();
+
+  if (error) throw error;
+  return data ?? null;
+}
+
+async function fetchPrazoStatusById(statusId) {
+  const { data, error } = await supabase
+    .from("aux_status")
+    .select("id")
+    .eq("id", statusId)
+    .eq("dominio", PRAZO_STATUS_DOMAIN)
+    .eq("ativo", true)
+    .maybeSingle();
+
+  if (error) throw error;
+  if (!data?.id) {
+    const err = new Error("Status de prazo inválido.");
+    err.statusCode = 404;
+    throw err;
+  }
   return data.id;
 }
 
@@ -282,4 +328,50 @@ export const criarPrazoManual = async (dados, tenantId) => {
 
   if (error) throw error;
   return data;
+};
+
+export const atualizarStatusPrazo = async (
+  { prazoId, statusId, usuarioId },
+  tenantId
+) => {
+  assertPrazoStatusPayload({ prazoId, statusId, usuarioId });
+
+  const [prazo, statusFinalId] = await Promise.all([
+    fetchPrazoSnapshot(prazoId, tenantId),
+    fetchPrazoStatusById(statusId),
+  ]);
+
+  if (!prazo) {
+    const error = new Error("Prazo não encontrado.");
+    error.statusCode = 404;
+    throw error;
+  }
+
+  if (prazo.status_id === statusFinalId) {
+    return prazo;
+  }
+
+  const { data: prazoAtualizado, error: updateError } = await withTenantFilter(
+    "Prazo",
+    tenantId
+  )
+    .update({ status_id: statusFinalId })
+    .eq("id", prazoId)
+    .select()
+    .maybeSingle();
+
+  if (updateError) throw updateError;
+
+  const { error: auditError } = await supabase.from("prazo_auditoria").insert([
+    {
+      prazo_id: prazoId,
+      status_anterior_id: prazo.status_id,
+      status_novo_id: statusFinalId,
+      usuario_id: usuarioId,
+    },
+  ]);
+
+  if (auditError) throw auditError;
+
+  return prazoAtualizado ?? prazo;
 };
