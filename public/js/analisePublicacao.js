@@ -163,7 +163,7 @@ function buildProvidenciaOptions(padrao, alternativas) {
 }
 
 function buildResponsavelOptions(usuarios = []) {
-  const options = ['<option value="">Responsável padrão (usuário atual)</option>'];
+  const options = ['<option value="">Selecione um responsável</option>'];
   const normalized = (usuarios || [])
     .filter((usuario) => usuario?.id)
     .map((usuario) => ({
@@ -198,7 +198,7 @@ async function carregarResponsaveis() {
     return usuarios;
   } catch (error) {
     console.warn("[analise] falha ao carregar responsáveis", error);
-    responsavel.innerHTML = '<option value="">Responsável padrão (usuário atual)</option>';
+    responsavel.innerHTML = '<option value="">Sem responsáveis disponíveis</option>';
     return [];
   }
 }
