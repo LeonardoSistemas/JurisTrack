@@ -4,6 +4,8 @@ import { logError, logWarn, logInfo } from "../utils/logger.js";
 
 const TASK_STATUS_DOMAIN = "tarefa_fila_trabalho";
 const TASK_STATUS_INITIAL = "Aguardando";
+const PRAZO_STATUS_DOMAIN = "prazo";
+const PRAZO_STATUS_DEFAULT = "pendente";
 
 function toPgVector(embeddingArray) {
   if (!Array.isArray(embeddingArray)) return null;
@@ -224,6 +226,27 @@ async function fetchStatusId(client) {
 
   if (!rows?.length) {
     const error = new Error("Status inicial da tarefa não encontrado.");
+    error.statusCode = 500;
+    throw error;
+  }
+
+  return rows[0].id;
+}
+
+async function fetchPrazoStatusId(client) {
+  const { rows } = await client.query(
+    `
+      select id
+      from aux_status
+      where nome = $1
+        and dominio = $2
+      limit 1
+    `,
+    [PRAZO_STATUS_DEFAULT, PRAZO_STATUS_DOMAIN]
+  );
+
+  if (!rows?.length) {
+    const error = new Error("Status inicial do prazo não encontrado.");
     error.statusCode = 500;
     throw error;
   }
@@ -595,19 +618,26 @@ export async function confirmarAnaliseSimilaridade({
     }
 
     const descricaoPrazo = normalizedPrazo.descricao || "Prazo definido na análise";
+    const processoId = await fetchProcessoIdByPublicacao(
+      client,
+      publicacaoId,
+      tenantId
+    );
+    const prazoStatusId = await fetchPrazoStatusId(client);
 
     await client.query(
       `
         insert into "Prazo"
-          (descricao, data_inicio, data_limite, dias, publicacaoid, tenant_id, auditoria_sugestao_id)
-        values ($1, $2, $3, $4, $5, $6, $7)
+          (descricao, data_inicio, data_limite, dias, processoid, status_id, tenant_id, auditoria_sugestao_id)
+        values ($1, $2, $3, $4, $5, $6, $7, $8)
       `,
       [
         descricaoPrazo,
         item?.data_publicacao ?? null,
         normalizedPrazo.data_vencimento,
         normalizedPrazo.dias,
-        publicacaoId,
+        processoId,
+        prazoStatusId,
         tenantId,
         auditoriaSugestaoId,
       ]
@@ -624,7 +654,6 @@ export async function confirmarAnaliseSimilaridade({
       [itemSimilaridadeId, tenantId]
     );
 
-    const processoId = await fetchProcessoIdByPublicacao(client, publicacaoId, tenantId);
     const statusId = await fetchStatusId(client);
     const responsavelId = decisaoFinal.responsavel_id || userId;
 
@@ -677,6 +706,8 @@ export async function confirmarAnaliseSimilaridade({
       message: "Análise confirmada com criação de prazo.",
       auditoriaSugestaoId,
       tarefaId,
+      processoId,
+      prazoStatusId,
     };
   });
 }
