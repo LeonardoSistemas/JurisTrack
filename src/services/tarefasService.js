@@ -369,6 +369,8 @@ export async function listTasks(filters, tenantId) {
   } else if (statusName) {
     params.push(statusName);
     conditions.push(`lower(s.nome) = lower($${params.length})`);
+  } else {
+    conditions.push("lower(s.nome) <> 'protocolado'");
   }
 
   if (searchTerm) {
