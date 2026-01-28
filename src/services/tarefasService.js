@@ -405,7 +405,10 @@ export async function listTasks(filters, tenantId) {
     left join users resp on resp.id = t.responsavel_id
     left join users rev on rev.id = t.revisor_id
     where ${conditions.join(" and ")}
-    order by t.data_limite asc, t.created_at asc
+    order by
+      case when lower(s.nome) = 'protocolado' then 1 else 0 end asc,
+      t.data_limite asc,
+      t.created_at asc
   `;
 
   const { rows } = await pool.query(query, params);

@@ -200,3 +200,36 @@ export const criarPrazo = async (req, res) => {
     res.status(500).json({ error: "Erro ao criar prazo: " + (error.message || JSON.stringify(error)) });
   }
 };
+
+export const atualizarStatusPrazo = async (req, res) => {
+  if (!ensureTenantAuthorization(req, res)) return;
+  try {
+    const prazoId = req.params.id;
+    const statusId = req.body?.statusId ?? req.body?.status_id;
+    const usuarioId = req.user?.id;
+
+    if (!prazoId || !statusId) {
+      return res.status(400).json({ error: "Prazo e Status são obrigatórios." });
+    }
+
+    if (!usuarioId) {
+      return res.status(401).json({ error: "Usuário não identificado." });
+    }
+
+    const atualizado = await processosService.atualizarStatusPrazo(
+      { prazoId, statusId, usuarioId },
+      req.tenantId
+    );
+
+    res.status(200).json(atualizado);
+  } catch (error) {
+    logError("processos.controller.update_prazo_status_error", "Erro ao atualizar status do prazo", {
+      tenantId: req.tenantId,
+      userId: req.user?.id,
+      prazoId: req.params?.id,
+      error,
+    });
+    const status = error.statusCode || 500;
+    res.status(status).json({ error: error.message });
+  }
+};

@@ -88,17 +88,29 @@ function setLoadingState() {
   );
 }
 
-function formatDate(value) {
-  if (!value) return "--";
+function parseLocalDate(value) {
+  if (!value) return null;
+  if (typeof value === "string") {
+    const match = value.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (match) {
+      const [, year, month, day] = match;
+      return new Date(Number(year), Number(month) - 1, Number(day));
+    }
+  }
   const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
+  if (Number.isNaN(date.getTime())) return null;
+  return date;
+}
+
+function formatDate(value) {
+  const date = parseLocalDate(value);
+  if (!date) return "--";
   return date.toLocaleDateString("pt-BR");
 }
 
 function daysDiffFromToday(value) {
-  if (!value) return null;
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return null;
+  const date = parseLocalDate(value);
+  if (!date) return null;
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   date.setHours(0, 0, 0, 0);

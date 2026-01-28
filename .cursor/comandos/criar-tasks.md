@@ -5,8 +5,8 @@
 
     A funcionalidade em que você trabalhará é identificada por este slug:
     
-    - PRD requerido: `tasks/prd-fila-de-trabalho/prd.md`
-    - Tech Spec requerido: `tasks/prd-fila-de-trabalho/techspec.md`
+    - PRD requerido: `tasks/prd-reestrutura-prazo/prd.md`
+    - Tech Spec requerido: `tasks/prd-reestrutura-prazo/techspec.md`
 
     ## Etapas do Processo
 
@@ -36,11 +36,11 @@
     ## Especificações de Saída
 
     ### Localização dos Arquivos
-    - Pasta da funcionalidade: `./tasks/prd-fila-de-trabalho/`
+    - Pasta da funcionalidade: `./tasks/prd-reestrutura-prazo/`
     - Template para a lista de tarefas: `./templates/tasks-template.md`
-    - Lista de tarefas: `./tasks/prd-fila-de-trabalho/tasks.md`
+    - Lista de tarefas: `./tasks/prd-reestrutura-prazo/tasks.md`
     - Template para cada tarefa individual: `./templates/task-template.md`
-    - Tarefas individuais: `./tasks/prd-fila-de-trabalho/[num]_task.md`
+    - Tarefas individuais: `./tasks/prd-reestrutura-prazo/[num]_task.md`
 
 
     ### Formato do Resumo de Tarefas (tasks.md)
