@@ -109,18 +109,30 @@ async function carregarTabela() {
     if (!response.ok) throw new Error("Erro ao buscar dados");
 
     const dados = await response.json();
-    const inicio = filtroDataInicio?.value ? new Date(filtroDataInicio.value) : null;
-    const fim = filtroDataFim?.value ? new Date(filtroDataFim.value) : null;
-
+    
+    // CORREÇÃO: Adicionar "T00:00:00" força o navegador a entender como data LOCAL,
+    // garantindo que o dia comece à meia-noite do fuso horário do usuário, e não em UTC.
+    const inicio = filtroDataInicio?.value 
+      ? new Date(filtroDataInicio.value + "T00:00:00") 
+      : null;
+      
+    const fim = filtroDataFim?.value 
+      ? new Date(filtroDataFim.value + "T00:00:00") 
+      : null;
+    
     const filtrados = Array.isArray(dados)
       ? dados.filter((publicacao) => {
           if (!inicio && !fim) return true;
           const data = publicacao.data_upload ? new Date(publicacao.data_upload) : null;
           if (!data || Number.isNaN(data.getTime())) return false;
+
+          // Se tiver início, a data deve ser maior ou igual
           if (inicio && data < inicio) return false;
+
+          // Se tiver fim, ajustamos para o final desse dia LOCAL
           if (fim) {
             const endDay = new Date(fim);
-            endDay.setHours(23, 59, 59, 999);
+            endDay.setHours(23, 59, 59, 999); // Vai para 23:59 do dia correto (ex: 14)
             if (data > endDay) return false;
           }
           return true;

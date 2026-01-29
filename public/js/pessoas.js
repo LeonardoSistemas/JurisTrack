@@ -12,17 +12,42 @@ function authFetch(url, options = {}) {
 }
 
 document.addEventListener("DOMContentLoaded", () => {
+    // Tenta encontrar o input imediatamente ou aguarda o componente
+    setTimeout(() => {
+        const buscaInput = document.getElementById("buscaInput");
+        if (buscaInput) {
+            buscaInput.addEventListener("keyup", (e) => {
+                if (e.key === "Enter") carregar();
+            });
+        }
+
+        const filtroStatus = document.getElementById("filtroStatus");
+        if (filtroStatus) {
+            filtroStatus.addEventListener("change", carregar);
+        }
+    }, 100);
+
     carregar();
 });
 
 async function carregar() {
     try {
-        const res = await authFetch(API_URL);
-        const dados = await res.json();
-       
+        const buscaInput = document.getElementById("buscaInput");
+        const termo = buscaInput ? buscaInput.value : "";
+        const filtroStatus = document.getElementById("filtroStatus");
+
+        const res = await authFetch(`${API_URL}?busca=${termo}`);
+        let dados = await res.json();
+
+        // Client-side filtering
+        if (filtroStatus && filtroStatus.value) {
+            const wantActive = filtroStatus.value === 'ativo';
+            dados = dados.filter(d => !!d.ativo === wantActive);
+        }
+
         const tbody = document.getElementById("tabelaCorpo");
         if (!tbody) return;
-        
+
         tbody.innerHTML = "";
 
         if (!dados || dados.length === 0) {
@@ -31,8 +56,8 @@ async function carregar() {
         }
 
         tbody.innerHTML = dados.map(item => {
-            const statusHtml = item.ativo 
-                ? '<span class="badge bg-success">Ativo</span>' 
+            const statusHtml = item.ativo
+                ? '<span class="badge bg-success">Ativo</span>'
                 : '<span class="badge bg-danger">Inativo</span>';
 
             const idReal = item.idpessoa || item.id || '';
@@ -48,14 +73,14 @@ async function carregar() {
                 <td class="text-end">
                     <button class="btn btn-sm btn-outline-secondary" 
                         onclick='editar(${JSON.stringify({
-                            id: idReal,
-                            nome: item.nome || '',
-                            cpf_cnpj: item.cpf_cnpj || '',
-                            tipo_pessoa: item.tipo_pessoa || 'Fisica',
-                            email: item.email || '',
-                            telefone: item.telefone || '',
-                            ativo: item.ativo
-                        })})'>
+                id: idReal,
+                nome: item.nome || '',
+                cpf_cnpj: item.cpf_cnpj || '',
+                tipo_pessoa: item.tipo_pessoa || 'Fisica',
+                email: item.email || '',
+                telefone: item.telefone || '',
+                ativo: item.ativo
+            })})'>
                         <i class="fas fa-pen"></i>
                     </button>
                 </td>
@@ -64,7 +89,7 @@ async function carregar() {
     } catch (error) {
         console.error("Erro ao carregar:", error);
         const tbody = document.getElementById("tabelaCorpo");
-        if(tbody) tbody.innerHTML = '<tr><td colspan="7" class="text-center text-danger">Erro ao carregar dados.</td></tr>';
+        if (tbody) tbody.innerHTML = '<tr><td colspan="7" class="text-center text-danger">Erro ao carregar dados.</td></tr>';
     }
 }
 
@@ -75,9 +100,9 @@ window.abrirModal = () => {
     document.getElementById("Tipo").value = "Fisica";
     document.getElementById("email").value = "";
     document.getElementById("Telefone").value = "";
-    
+
     const checkAtivo = document.getElementById("Ativo");
-    if(checkAtivo) checkAtivo.checked = true;
+    if (checkAtivo) checkAtivo.checked = true;
 
     new bootstrap.Modal(document.getElementById("modalAuxiliar")).show();
 };
@@ -89,9 +114,9 @@ window.editar = (dados) => {
     document.getElementById("Tipo").value = dados.tipo_pessoa || 'Fisica';
     document.getElementById("email").value = dados.email || '';
     document.getElementById("Telefone").value = dados.telefone || '';
-    
+
     const checkAtivo = document.getElementById("Ativo");
-    if(checkAtivo) checkAtivo.checked = Boolean(dados.ativo);
+    if (checkAtivo) checkAtivo.checked = Boolean(dados.ativo);
 
     new bootstrap.Modal(document.getElementById("modalAuxiliar")).show();
 };
@@ -106,7 +131,7 @@ window.salvar = async () => {
 
     if (!nome) return alert("O Nome é obrigatório.");
 
-    const body = { 
+    const body = {
         nome: nome,
         cpf_cnpj: cpf,
         tipo_pessoa: tipo,
@@ -114,9 +139,9 @@ window.salvar = async () => {
         telefone: tel,
         ativo: checkAtivo ? checkAtivo.checked : true
     };
-    
+
     const id = document.getElementById("IdRegisto").value;
-    
+
     if (id) body[ID_CAMPO] = id;
 
     try {
@@ -125,8 +150,8 @@ window.salvar = async () => {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(body)
         });
-        
-        if (res.ok) { 
+
+        if (res.ok) {
             bootstrap.Modal.getInstance(document.getElementById("modalAuxiliar")).hide();
             carregar();
         } else {

@@ -14,7 +14,7 @@ import {
 import { injectTenant, withTenantFilter } from "./tenantScope.js";
 
 const BASE_COLUMNS =
-  "id, email, role, status, tenant_id, created_at, updated_at, password_hash";
+  "id, email, nome, role, status, tenant_id, created_at, updated_at, password_hash";
 
 export async function findUserByEmail(rawEmail) {
   const email = assertEmail(rawEmail);
@@ -62,7 +62,7 @@ export async function listUsersByTenant({ tenantId, status }) {
   if (!tenantId) throw new ValidationError("tenantId é obrigatório.");
 
   let query = withTenantFilter("users", tenantId)
-    .select("id, email, role, status, tenant_id, created_at, updated_at")
+    .select("id, email, nome, role, status, tenant_id, created_at, updated_at")
     .order("created_at", { ascending: false });
 
   if (status) {
@@ -85,6 +85,7 @@ export async function listUsersByTenant({ tenantId, status }) {
 }
 
 export async function createUser({
+  nome, 
   email,
   passwordHash,
   role,
@@ -114,6 +115,7 @@ export async function createUser({
     .insert([
       injectTenant(
         {
+          nome,
           email: normalizedEmail,
           password_hash: passwordHash,
           role: normalizedRole,
@@ -124,7 +126,7 @@ export async function createUser({
         tenantId
       ),
     ])
-    .select("id, email, role, status, tenant_id, created_at, updated_at")
+    .select("id, nome,email, role, status, tenant_id, created_at, updated_at")
     .single();
 
   if (error) {

@@ -1,6 +1,83 @@
 import supabase from "../config/supabase.js";
 import { injectTenant, withTenantFilter } from "../repositories/tenantScope.js";
 
+const PRAZO_STATUS_DOMAIN = "prazo";
+const PRAZO_STATUS_DEFAULT = "pendente";
+
+function assertPrazoStatusPayload({ prazoId, statusId, usuarioId }) {
+  if (!prazoId) {
+    const error = new Error("prazoId é obrigatório.");
+    error.statusCode = 400;
+    throw error;
+  }
+  if (!statusId) {
+    const error = new Error("statusId é obrigatório.");
+    error.statusCode = 400;
+    throw error;
+  }
+  if (!usuarioId) {
+    const error = new Error("usuarioId é obrigatório.");
+    error.statusCode = 401;
+    throw error;
+  }
+}
+
+async function fetchDefaultPrazoStatusId() {
+  const { data, error } = await supabase
+    .from("aux_status")
+    .select("id")
+    .eq("nome", PRAZO_STATUS_DEFAULT)
+    .eq("dominio", PRAZO_STATUS_DOMAIN)
+    .maybeSingle();
+
+  if (error) throw error;
+  if (!data?.id) {
+    throw new Error("Default prazo status not found.");
+  }
+
+  return data.id;
+}
+
+async function fetchPrazoSnapshot(prazoId, tenantId) {
+  const { data, error } = await withTenantFilter("Prazo", tenantId)
+    .select("*")
+    .eq("id", prazoId)
+    .maybeSingle();
+
+  if (error) throw error;
+  return data ?? null;
+}
+
+async function fetchPrazoStatusById(statusId) {
+  const { data, error } = await supabase
+    .from("aux_status")
+    .select("id")
+    .eq("id", statusId)
+    .eq("dominio", PRAZO_STATUS_DOMAIN)
+    .eq("ativo", true)
+    .maybeSingle();
+
+  if (error) throw error;
+  if (!data?.id) {
+    const err = new Error("Status de prazo inválido.");
+    err.statusCode = 404;
+    throw err;
+  }
+  return data.id;
+}
+
+async function fetchPrazoStatuses() {
+  const { data, error } = await supabase
+    .from("aux_status")
+    .select("id, nome, cor_hex")
+    .eq("dominio", PRAZO_STATUS_DOMAIN)
+    .eq("ativo", true)
+    .order("nome", { ascending: true });
+
+  if (error) throw error;
+  return data ?? [];
+}
+
 function normalizeProcessoPayload(dados) {
   if (!dados || typeof dados !== "object") return {};
   const payload = { ...dados };
@@ -68,9 +145,8 @@ export const listarProcessos = async (filtros, tenantId) => {
 };
 
 export const obterProcessoCompleto = async (id, tenantId) => {
-  const { data, error } = await withTenantFilter("processos", tenantId)
-    .select(
-      `
+  const processoQuery = withTenantFilter("processos", tenantId)
+    .select(`
       *,
       cidades ( idcidade, descricao, idestado ),
       comarcas ( idcomarca, descricao ),
@@ -84,79 +160,42 @@ export const obterProcessoCompleto = async (id, tenantId) => {
       moeda:moedas ( idmoeda, descricao ),
       partes:processo_partes ( id, tipo_parte, pessoas ( idpessoa, nome, cpf_cnpj ) ),
       advogado:pessoas!fk_processos_advogado ( idpessoa, nome ),
+      Prazo!prazo_processoid_fkey (
+        *,
+        responsavel:users!Prazo_responsavelId_fkey ( nome )
+      ),
 
-      Publicacao (
+      Publicacao!"publicacao_processoid_fkey" (
         id,
         texto_integral,
         data_publicacao,
-        Prazo ( * ),
-        Andamento ( * ),
-        Historico_Peticoes ( * )
+        Andamento!andamento_publicacaoid_fkey ( * ),
+        Historico_Peticoes!historico_peticoes_publicacao_id_fkey ( * )
       ),
       
-      Andamento (
-        *
+      Andamento!"Andamento_processoId_fkey" (
+        *,
+        responsavel:pessoas!Andamento_responsavelId_fkey ( nome )
       )
-    `
-    )
+    `)
     .eq("idprocesso", id)
-    .eq("Publicacao.tenant_id", tenantId)
     .maybeSingle();
 
-  if (error) throw error;
-  if (!data) return data;
+  const [{ data, error }, prazoStatuses] = await Promise.all([
+    processoQuery,
+    fetchPrazoStatuses(),
+  ]);
 
-  const normalizeArray = (value) => {
-    if (!value) return [];
-    return Array.isArray(value) ? value : [value];
-  };
-
-  const responsavelIds = new Set();
-
-  normalizeArray(data.Andamento).forEach((andamento) => {
-    const responsavelId =
-      andamento?.responsavelId ?? andamento?.responsavelid ?? null;
-    if (responsavelId) responsavelIds.add(responsavelId);
-  });
-
-  normalizeArray(data.Publicacao).forEach((pub) => {
-    normalizeArray(pub?.Prazo).forEach((prazo) => {
-      const responsavelId =
-        prazo?.responsavelId ?? prazo?.responsavelid ?? null;
-      if (responsavelId) responsavelIds.add(responsavelId);
-    });
-  });
-
-  if (responsavelIds.size > 0) {
-    const { data: responsaveis, error: respError } = await supabase
-      .from("pessoas")
-      .select("idpessoa, nome")
-      .in("idpessoa", Array.from(responsavelIds));
-
-    if (respError) throw respError;
-
-    const responsavelMap = new Map(
-      (responsaveis || []).map((item) => [item.idpessoa, item])
-    );
-
-    normalizeArray(data.Andamento).forEach((andamento) => {
-      const responsavelId =
-        andamento?.responsavelId ?? andamento?.responsavelid ?? null;
-      const responsavel = responsavelMap.get(responsavelId);
-      if (responsavel) andamento.responsavel = responsavel;
-    });
-
-    normalizeArray(data.Publicacao).forEach((pub) => {
-      normalizeArray(pub?.Prazo).forEach((prazo) => {
-        const responsavelId =
-          prazo?.responsavelId ?? prazo?.responsavelid ?? null;
-        const responsavel = responsavelMap.get(responsavelId);
-        if (responsavel) prazo.responsavel = responsavel;
-      });
-    });
+  if (error) {
+    console.error("ERRO SUPABASE:", error); // Verifique o terminal do VS Code/Node
+    throw error;
   }
 
-  return data;
+  if (!data) return data;
+  return {
+    ...data,
+    prazo_statuses: prazoStatuses,
+  };
 };
 
 export const criarProcesso = async (dados, tenantId) => {
@@ -291,35 +330,17 @@ export const obterContextoParaModelo = async (idProcesso, tenantId) => {
 };
 
 export const criarPrazoManual = async (dados, tenantId) => {
-  const payload = injectTenant(dados, tenantId);
-
-  // Remove campos de controle interno que não vão pro banco
-  delete payload.processoId;
-
-  // Passo 1: Criar Publicação Manual
-  const publicacaoPayload = {
-    processoid: dados.processoId,
-    data_publicacao: new Date(),
-    texto_integral: dados.descricao, // Salva apenas a descrição pura, sem prefixos, conforme solicitado
-    tenant_id: tenantId
-  };
-
-  const { data: pubData, error: pubError } = await supabase
-    .from("Publicacao")
-    .insert([publicacaoPayload])
-    .select()
-    .single();
-
-  if (pubError) throw pubError;
-
-  // Passo 2: Criar o Prazo linkado
-  const prazoPayload = {
-    descricao: "Prazo Manual", // Salva fixo como solicitado
-    data_limite: dados.data_limite,
-    publicacaoid: pubData.id,
-    responsavelId: dados.responsavelId ? dados.responsavelId : null,
-    tenant_id: tenantId
-  };
+  const statusId = dados.status_id ?? (await fetchDefaultPrazoStatusId());
+  const prazoPayload = injectTenant(
+    {
+      descricao: dados.descricao,
+      data_limite: dados.data_limite,
+      processoid: dados.processoId,
+      status_id: statusId,
+      responsavelId: dados.responsavelId ?? null,
+    },
+    tenantId
+  );
 
   const { data, error } = await supabase
     .from("Prazo")
@@ -329,4 +350,50 @@ export const criarPrazoManual = async (dados, tenantId) => {
 
   if (error) throw error;
   return data;
+};
+
+export const atualizarStatusPrazo = async (
+  { prazoId, statusId, usuarioId },
+  tenantId
+) => {
+  assertPrazoStatusPayload({ prazoId, statusId, usuarioId });
+
+  const [prazo, statusFinalId] = await Promise.all([
+    fetchPrazoSnapshot(prazoId, tenantId),
+    fetchPrazoStatusById(statusId),
+  ]);
+
+  if (!prazo) {
+    const error = new Error("Prazo não encontrado.");
+    error.statusCode = 404;
+    throw error;
+  }
+
+  if (prazo.status_id === statusFinalId) {
+    return prazo;
+  }
+
+  const { data: prazoAtualizado, error: updateError } = await withTenantFilter(
+    "Prazo",
+    tenantId
+  )
+    .update({ status_id: statusFinalId })
+    .eq("id", prazoId)
+    .select()
+    .maybeSingle();
+
+  if (updateError) throw updateError;
+
+  const { error: auditError } = await supabase.from("prazo_auditoria").insert([
+    {
+      prazo_id: prazoId,
+      status_anterior_id: prazo.status_id,
+      status_novo_id: statusFinalId,
+      usuario_id: usuarioId,
+    },
+  ]);
+
+  if (auditError) throw auditError;
+
+  return prazoAtualizado ?? prazo;
 };

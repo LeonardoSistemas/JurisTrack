@@ -1,7 +1,11 @@
 import pool from "../config/postgresClient.js";
-import { addBusinessDays } from "../utils/dateUtils.js";
 import { gerarEmbedding } from "./embeddingService.js";
 import { logError, logWarn, logInfo } from "../utils/logger.js";
+
+const TASK_STATUS_DOMAIN = "tarefa_fila_trabalho";
+const TASK_STATUS_INITIAL = "Aguardando";
+const PRAZO_STATUS_DOMAIN = "prazo";
+const PRAZO_STATUS_DEFAULT = "pendente";
 
 function toPgVector(embeddingArray) {
   if (!Array.isArray(embeddingArray)) return null;
@@ -103,6 +107,218 @@ function ensureItemIsPendente(item) {
   }
 }
 
+function ensureItemIsCadastradoSemPrazo(item) {
+  if (!item) {
+    const error = new Error("Item não encontrado para o tenant.");
+    error.statusCode = 404;
+    throw error;
+  }
+
+  if (item.status_decisao !== "cadastrado_sem_prazo") {
+    const error = new Error("Item não está pronto para análise.");
+    error.statusCode = 409;
+    throw error;
+  }
+}
+
+function normalizePrazoDays(value) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+}
+
+function normalizePrazoFinal(prazoFinal) {
+  if (!prazoFinal) return null;
+  if (typeof prazoFinal === "string") {
+    return { data_vencimento: prazoFinal };
+  }
+  if (typeof prazoFinal !== "object") return null;
+  return {
+    data_vencimento: prazoFinal.data_vencimento ?? prazoFinal.data_limite ?? null,
+    dias: normalizePrazoDays(prazoFinal.dias),
+    descricao: prazoFinal.descricao ?? null,
+  };
+}
+
+async function ensurePublicacaoLink({
+  client,
+  itemId,
+  publicacaoId,
+  tenantId,
+}) {
+  const { rows } = await client.query(
+    `
+      select publicacao_id
+      from similaridade_item_publicacao
+      where item_similaridade_id = $1
+        and tenant_id = $2
+      limit 1
+    `,
+    [itemId, tenantId]
+  );
+
+  if (!rows?.length) {
+    const error = new Error("Vínculo com publicação não encontrado.");
+    error.statusCode = 404;
+    throw error;
+  }
+
+  const linkedPublicacaoId = rows[0]?.publicacao_id;
+  if (linkedPublicacaoId !== publicacaoId) {
+    const error = new Error("Publicação não corresponde ao item informado.");
+    error.statusCode = 409;
+    throw error;
+  }
+
+  return linkedPublicacaoId;
+}
+
+async function ensurePublicacaoExists(client, publicacaoId, tenantId) {
+  const { rowCount } = await client.query(
+    `
+      select id
+      from "Publicacao"
+      where id = $1
+        and tenant_id = $2
+      limit 1
+    `,
+    [publicacaoId, tenantId]
+  );
+
+  if (!rowCount) {
+    const error = new Error("Publicação não encontrada para o tenant.");
+    error.statusCode = 404;
+    throw error;
+  }
+}
+
+function normalizeAuditoriaPayload(decisaoFinalJson) {
+  if (decisaoFinalJson == null) return null;
+  if (typeof decisaoFinalJson === "string") return decisaoFinalJson;
+  return JSON.stringify(decisaoFinalJson);
+}
+
+function normalizeDecisaoFinalObject(decisaoFinalJson) {
+  if (!decisaoFinalJson) return null;
+  if (typeof decisaoFinalJson === "string") {
+    try {
+      return JSON.parse(decisaoFinalJson);
+    } catch {
+      return null;
+    }
+  }
+  if (typeof decisaoFinalJson === "object") {
+    return decisaoFinalJson;
+  }
+  return null;
+}
+
+async function fetchStatusId(client) {
+  const { rows } = await client.query(
+    `
+      select id
+      from aux_status
+      where nome = $1
+        and dominio = $2
+      limit 1
+    `,
+    [TASK_STATUS_INITIAL, TASK_STATUS_DOMAIN]
+  );
+
+  if (!rows?.length) {
+    const error = new Error("Status inicial da tarefa não encontrado.");
+    error.statusCode = 500;
+    throw error;
+  }
+
+  return rows[0].id;
+}
+
+async function fetchPrazoStatusId(client) {
+  const { rows } = await client.query(
+    `
+      select id
+      from aux_status
+      where nome = $1
+        and dominio = $2
+      limit 1
+    `,
+    [PRAZO_STATUS_DEFAULT, PRAZO_STATUS_DOMAIN]
+  );
+
+  if (!rows?.length) {
+    const error = new Error("Status inicial do prazo não encontrado.");
+    error.statusCode = 500;
+    throw error;
+  }
+
+  return rows[0].id;
+}
+
+async function fetchProcessoIdByPublicacao(client, publicacaoId, tenantId) {
+  const { rows } = await client.query(
+    `
+      select processoid
+      from "Publicacao"
+      where id = $1
+        and tenant_id = $2
+      limit 1
+    `,
+    [publicacaoId, tenantId]
+  );
+
+  const processoId = rows?.[0]?.processoid ?? null;
+  if (!processoId) {
+    const error = new Error("Processo não encontrado para a publicação.");
+    error.statusCode = 404;
+    throw error;
+  }
+
+  return processoId;
+}
+
+async function fetchProvidenciaChecklist(client, providenciaId, tenantId) {
+  const { rows } = await client.query(
+    `
+      select titulo, ordem, obrigatorio
+      from providencia_checklist
+      where providencia_id = $1
+        and tenant_id = $2
+      order by ordem asc
+    `,
+    [providenciaId, tenantId]
+  );
+
+  return rows ?? [];
+}
+
+async function insertChecklistItems(client, { tarefaId, tenantId, items }) {
+  if (!items.length) return;
+
+  const values = [];
+  const placeholders = items.map((item, index) => {
+    const baseIndex = index * 5;
+    values.push(
+      tarefaId,
+      item.titulo,
+      item.ordem ?? 0,
+      item.obrigatorio ?? true,
+      tenantId
+    );
+    return `($${baseIndex + 1}, $${baseIndex + 2}, $${baseIndex + 3}, $${
+      baseIndex + 4
+    }, $${baseIndex + 5})`;
+  });
+
+  await client.query(
+    `
+      insert into tarefa_checklist_item
+        (tarefa_id, titulo, ordem, obrigatorio, tenant_id)
+      values ${placeholders.join(", ")}
+    `,
+    values
+  );
+}
+
 async function ensureProcesso(client, { numero_processo, tenantId }) {
   const existing = await client.query(
     `
@@ -119,40 +335,18 @@ async function ensureProcesso(client, { numero_processo, tenantId }) {
     return existing.rows[0].idprocesso;
   }
 
+  const pasta = numero_processo || "sem_pasta";
+
   const inserted = await client.query(
     `
-      insert into processos (numprocesso, tenant_id)
-      values ($1, $2)
+      insert into processos (numprocesso, tenant_id, pasta)
+      values ($1, $2, $3)
       returning idprocesso
     `,
-    [numero_processo, tenantId]
+    [numero_processo, tenantId, pasta]
   );
 
   return inserted.rows[0].idprocesso;
-}
-
-async function calcularDataLimite(item) {
-  if (item?.data_vencimento) return item.data_vencimento;
-  if (!item?.data_publicacao || !item?.prazo_dias) return null;
-
-  try {
-    const dataCalculada = await addBusinessDays(
-      item.data_publicacao,
-      item.prazo_dias
-    );
-    return dataCalculada?.format?.("YYYY-MM-DD") ?? null;
-  } catch (error) {
-    logWarn(
-      "conciliacao.calc_prazo_error",
-      "Falha ao calcular data_limite, seguindo sem prazo",
-      {
-        error,
-        data_publicacao: item?.data_publicacao,
-        prazo_dias: item?.prazo_dias,
-      }
-    );
-    return null;
-  }
 }
 
 export async function cadastrarItem({ itemId, tenantId, userId }) {
@@ -169,8 +363,6 @@ export async function cadastrarItem({ itemId, tenantId, userId }) {
       error.statusCode = 400;
       throw error;
     }
-
-    const dataLimite = await calcularDataLimite(item);
 
     const processoId = await ensureProcesso(client, {
       numero_processo: item.numero_processo,
@@ -231,22 +423,17 @@ export async function cadastrarItem({ itemId, tenantId, userId }) {
 
     await client.query(
       `
-        insert into "Prazo" (descricao, data_limite, publicacaoid, "responsavelId", tenant_id)
-        values ($1, $2, $3, $4, $5)
+        insert into similaridade_item_publicacao
+          (item_similaridade_id, publicacao_id, tenant_id)
+        values ($1, $2, $3)
       `,
-      [
-        "Prazo automático (similaridade)",
-        dataLimite,
-        publicacaoId,
-        null,
-        tenantId,
-      ]
+      [itemId, publicacaoId, tenantId]
     );
 
     await client.query(
       `
         update similaridade_itens
-        set status_decisao = 'cadastrado',
+        set status_decisao = 'cadastrado_sem_prazo',
             updated_at = now()
         where id = $1
       `,
@@ -318,11 +505,209 @@ export async function listarPendentesPorUpload({ uploadId, tenantId }) {
       from similaridade_itens
       where upload_documento_id = $1
         and tenant_id = $2
-        and status_decisao = 'pendente'
-      order by created_at asc
+        and status_decisao in ('pendente', 'cadastrado_sem_prazo')
+      order by
+        case
+          when status_decisao = 'cadastrado_sem_prazo' then 0
+          when status_decisao = 'pendente' then 1
+          else 2
+        end,
+        created_at asc
     `,
     [uploadId, tenantId]
   );
 
   return rows;
+}
+
+export async function buscarPublicacaoVinculada({ itemId, tenantId }) {
+  if (!itemId || !tenantId) {
+    throw new Error("itemId e tenantId são obrigatórios.");
+  }
+
+  const { rows } = await pool.query(
+    `
+      select publicacao_id
+      from similaridade_item_publicacao
+      where item_similaridade_id = $1
+        and tenant_id = $2
+      limit 1
+    `,
+    [itemId, tenantId]
+  );
+
+  if (!rows?.length) {
+    const error = new Error("Vínculo com publicação não encontrado.");
+    error.statusCode = 404;
+    throw error;
+  }
+
+  return { publicacaoId: rows[0].publicacao_id };
+}
+
+export async function confirmarAnaliseSimilaridade({
+  itemSimilaridadeId,
+  publicacaoId,
+  prazoFinal,
+  decisaoFinalJson,
+  tenantId,
+  userId,
+}) {
+  if (!itemSimilaridadeId || !publicacaoId || !tenantId || !userId) {
+    const error = new Error(
+      "itemSimilaridadeId, publicacaoId, tenantId e userId são obrigatórios."
+    );
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const normalizedPrazo = normalizePrazoFinal(prazoFinal);
+  if (!normalizedPrazo?.data_vencimento) {
+    const error = new Error("prazo_final com data_vencimento é obrigatório.");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const auditoriaPayload = normalizeAuditoriaPayload(decisaoFinalJson);
+  if (!auditoriaPayload) {
+    const error = new Error("decisao_final_json é obrigatório.");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const decisaoFinal = normalizeDecisaoFinalObject(decisaoFinalJson);
+  if (!decisaoFinal) {
+    const error = new Error("decisao_final_json inválido.");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  if (!decisaoFinal.evento_id || !decisaoFinal.providencia_id) {
+    const error = new Error("evento_id e providencia_id são obrigatórios.");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  return withTransaction(async (client) => {
+    const item = await fetchItemForUpdate(client, itemSimilaridadeId, tenantId);
+    ensureItemIsCadastradoSemPrazo(item);
+
+    await ensurePublicacaoLink({
+      client,
+      itemId: itemSimilaridadeId,
+      publicacaoId,
+      tenantId,
+    });
+    await ensurePublicacaoExists(client, publicacaoId, tenantId);
+
+    const auditoriaResult = await client.query(
+      `
+        insert into auditoria_sugestao
+          (publicacao_id, decisao_final_json, usuario_id, tenant_id, created_at)
+        values ($1, $2, $3, $4, now())
+        returning id
+      `,
+      [publicacaoId, auditoriaPayload, userId, tenantId]
+    );
+
+    const auditoriaSugestaoId = auditoriaResult.rows?.[0]?.id;
+    if (!auditoriaSugestaoId) {
+      const error = new Error("Falha ao criar auditoria da sugestão.");
+      error.statusCode = 500;
+      throw error;
+    }
+
+    const descricaoPrazo = normalizedPrazo.descricao || "Prazo definido na análise";
+    const processoId = await fetchProcessoIdByPublicacao(
+      client,
+      publicacaoId,
+      tenantId
+    );
+    const prazoStatusId = await fetchPrazoStatusId(client);
+
+    await client.query(
+      `
+        insert into "Prazo"
+          (descricao, data_inicio, data_limite, dias, processoid, status_id, tenant_id, auditoria_sugestao_id)
+        values ($1, $2, $3, $4, $5, $6, $7, $8)
+      `,
+      [
+        descricaoPrazo,
+        item?.data_publicacao ?? null,
+        normalizedPrazo.data_vencimento,
+        normalizedPrazo.dias,
+        processoId,
+        prazoStatusId,
+        tenantId,
+        auditoriaSugestaoId,
+      ]
+    );
+
+    await client.query(
+      `
+        update similaridade_itens
+        set status_decisao = 'analisado_com_prazo',
+            updated_at = now()
+        where id = $1
+          and tenant_id = $2
+      `,
+      [itemSimilaridadeId, tenantId]
+    );
+
+    const statusId = await fetchStatusId(client);
+    const responsavelId = decisaoFinal.responsavel_id || userId;
+
+    const tarefaResult = await client.query(
+      `
+        insert into tarefa_fila_trabalho
+          (processo_id, evento_id, providencia_id, responsavel_id, status_id, data_limite, tenant_id)
+        values ($1, $2, $3, $4, $5, $6, $7)
+        returning id
+      `,
+      [
+        processoId,
+        decisaoFinal.evento_id,
+        decisaoFinal.providencia_id,
+        responsavelId,
+        statusId,
+        normalizedPrazo.data_vencimento,
+        tenantId,
+      ]
+    );
+
+    const tarefaId = tarefaResult.rows?.[0]?.id;
+    if (!tarefaId) {
+      const error = new Error("Falha ao criar tarefa na fila de trabalho.");
+      error.statusCode = 500;
+      throw error;
+    }
+
+    const checklistItems = await fetchProvidenciaChecklist(
+      client,
+      decisaoFinal.providencia_id,
+      tenantId
+    );
+    await insertChecklistItems(client, {
+      tarefaId,
+      tenantId,
+      items: checklistItems,
+    });
+
+    logInfo("conciliacao.confirmar.sucesso", "Análise confirmada com prazo.", {
+      tenantId,
+      userId,
+      itemSimilaridadeId,
+      publicacaoId,
+      auditoriaSugestaoId,
+      tarefaId,
+    });
+
+    return {
+      message: "Análise confirmada com criação de prazo.",
+      auditoriaSugestaoId,
+      tarefaId,
+      processoId,
+      prazoStatusId,
+    };
+  });
 }

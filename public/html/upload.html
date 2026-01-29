@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
@@ -36,7 +36,7 @@
             </li>
             <li class="nav-item" role="presentation">
               <button class="nav-link" id="tab-similaridade-btn" data-bs-toggle="tab" data-bs-target="#tab-similaridade" type="button" role="tab" aria-controls="tab-similaridade" aria-selected="false">
-                <i class="fas fa-diagram-project me-1"></i> Similaridade
+                <i class="fas fa-diagram-project me-1"></i> Análise - providência
               </button>
             </li>
         </ul>
@@ -120,6 +120,91 @@
         
     </div>
 </div>
+
+    <div class="modal fade" id="analisePublicacaoModal" tabindex="-1" aria-labelledby="analisePublicacaoModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-xl modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <div>
+                        <h5 class="modal-title" id="analisePublicacaoModalLabel">Analisar publicação</h5>
+                        <p class="text-muted small mb-0">Revise e ajuste as sugestões antes de salvar.</p>
+                    </div>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="analiseModalFeedback" class="alert d-none" role="alert"></div>
+                    <div class="row g-3">
+                        <div class="col-lg-7">
+                            <div class="analise-texto-card">
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <h6 class="mb-0">Texto da Publicação</h6>
+                                    <span id="analiseModalTipoAndamento" class="badge text-bg-secondary">-</span>
+                                </div>
+                                <div id="analiseModalTexto" class="analise-texto-publicacao">Carregando...</div>
+                            </div>
+                        </div>
+                        <div class="col-lg-5">
+                            <form id="analiseModalForm" class="d-flex flex-column gap-3">
+                                <input type="hidden" id="analiseModalItemId">
+                                <div>
+                                    <label for="analiseModalProcesso" class="form-label small text-muted">Processo</label>
+                                    <input type="text" id="analiseModalProcesso" class="form-control" readonly>
+                                </div>
+                                <div class="row g-2">
+                                    <div class="col-sm-6">
+                                        <label for="analiseModalDataPublicacao" class="form-label small text-muted">Data da publicação</label>
+                                        <input type="text" id="analiseModalDataPublicacao" class="form-control" readonly>
+                                    </div>
+                                    <div class="col-sm-6">
+                                        <label for="analiseModalEventoId" class="form-label small text-muted">Evento sugerido</label>
+                                        <select id="analiseModalEventoId" class="form-select"></select>
+                                    </div>
+                                </div>
+                                <div>
+                                    <label for="analiseModalProvidencia" class="form-label small text-muted">Providência</label>
+                                    <select id="analiseModalProvidencia" class="form-select"></select>
+                                </div>
+                                <div>
+                                    <label for="analiseModalResponsavel" class="form-label small text-muted">Responsável</label>
+                                    <select id="analiseModalResponsavel" class="form-select">
+                                        <option value="">Responsável padrão (usuário atual)</option>
+                                    </select>
+                                    <div class="form-text">Opcional. Se vazio, será atribuído ao usuário atual.</div>
+                                </div>
+                                <div class="row g-2">
+                                    <div class="col-sm-6">
+                                        <label for="analiseModalPrazoData" class="form-label small text-muted">Data de prazo</label>
+                                        <input type="date" id="analiseModalPrazoData" class="form-control">
+                                    </div>
+                                    <div class="col-sm-6">
+                                        <label for="analiseModalModelo" class="form-label small text-muted">Modelo de petição</label>
+                                        <select id="analiseModalModelo" class="form-select"></select>
+                                    </div>
+                                </div>
+                                <div class="d-flex align-items-center gap-2">
+                                    <span class="badge text-bg-light text-secondary border" id="analiseModalPrazoInfo">Prazo: -</span>
+                                    <span class="text-muted small" id="analiseModalPrazoAviso"></span>
+                                </div>
+                                <div>
+                                    <label for="analiseModalObservacao" class="form-label small text-muted">Observações</label>
+                                    <textarea id="analiseModalObservacao" class="form-control" rows="3" placeholder="Observações adicionais..."></textarea>
+                                </div>
+                                <div>
+                                    <label class="form-label small text-muted">Observação jurídica</label>
+                                    <div id="analiseModalObservacaoJuridica" class="form-control-plaintext small text-muted">-</div>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" id="analiseModalSalvar" class="btn btn-primary">Salvar</button>
+                    <button type="button" id="analiseModalSalvarProximo" class="btn btn-success">Salvar e Próximo</button>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <!---<div class="modal fade" id="resultadoModal" tabindex="-1" aria-labelledby="resultadoModalLabel" aria-hidden="true">
         <div class="modal-dialog modal-lg"> <div class="modal-content">

@@ -30,6 +30,11 @@ import dashboardRoute from "./routes/dashboardRoute.js";
 import publicacoesRoutes from "./routes/publicacoesRoutes.js";
 import conciliacaoRoute from "./routes/conciliacaoRoute.js";
 import feriadoRoute from "./routes/feriadoRoute.js"; 
+import eventoProvidenciaRoute from "./routes/eventoProvidenciaRoute.js";
+import configuracaoEventoRoute from "./routes/configuracaoEventoRoute.js";
+import configuracaoProvidenciaRoute from "./routes/configuracaoProvidenciaRoute.js";
+import tarefasRoute from "./routes/tarefasRoute.js";
+
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -67,6 +72,9 @@ app.use("/api/auth", authRoute);
 app.use("/api/internal", internalRoute);
 app.use("/api", tenantContextMiddleware);
 app.use("/api/dashboard", dashboardRoute);
+app.use("/api/analise", eventoProvidenciaRoute);
+app.use("/api/config", configuracaoEventoRoute);
+app.use("/api/config", configuracaoProvidenciaRoute);
 app.use("/api/processos", processoRoute);
 app.use("/api/locais", locaisRoute);
 app.use("/api/auxiliares", auxiliarRouter);
@@ -75,6 +83,7 @@ app.use("/api/users", userRoute);
 app.use('/api/publicacoes', publicacoesRoutes);
 app.use('/api/similaridade', conciliacaoRoute);
 app.use("/api/feriados", feriadoRoute);
+app.use("/api/tarefas", tarefasRoute);
 
 /* Rota padrão */
 
@@ -88,6 +97,14 @@ app.get("/", (req, res) => {
 
 app.get("/dashboard", (req, res) => {
   res.sendFile(path.join(__dirname, "../public", "html", "dashboard.html"));
+});
+
+app.get("/fila-trabalho", (req, res) => {
+  res.sendFile(path.join(__dirname, "../public", "html", "filaTrabalho.html"));
+});
+
+app.get("/tarefas-execucao", (req, res) => {
+  res.sendFile(path.join(__dirname, "../public", "html", "tarefasExecucao.html"));
 });
 
 app.get("/processos", (req, res) => {
@@ -125,6 +142,26 @@ app.get("/historico", (req, res) => {
 app.get("/probabilidades", (req, res) => {
   res.sendFile(
     path.join(__dirname, "../public", "html", "probabilidade.html"));
+});
+
+app.get("/eventos", (req, res) => {
+  res.sendFile(path.join(__dirname, "../public", "html", "eventos.html"));
+});
+
+app.get("/eventos-mapeamentos", (req, res) => {
+  res.sendFile(
+    path.join(__dirname, "../public", "html", "eventos-mapeamentos.html")
+  );
+});
+
+app.get("/eventos-regras", (req, res) => {
+  res.sendFile(
+    path.join(__dirname, "../public", "html", "eventos-regras.html")
+  );
+});
+
+app.get("/providencias", (req, res) => {
+  res.sendFile(path.join(__dirname, "../public", "html", "providencias.html"));
 });
 
 app.get("/estados", (req, res) => {
@@ -207,6 +244,12 @@ app.get("/situacoes", (req, res) =>{
 app.get("/tipoAcao", (req, res) =>{
   res.sendFile(
     (path.join(__dirname, "../public","html", "tipoAcao.html"))
+  );
+});
+
+app.get("/tiposAndamento", (req, res) =>{
+  res.sendFile(
+    (path.join(__dirname, "../public","html", "tipoAndamento.html"))
   );
 });
 

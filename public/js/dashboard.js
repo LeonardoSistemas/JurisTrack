@@ -46,7 +46,23 @@ function formatCurrencyBRL(value) {
 
 function formatDate(value) {
   if (!value) return "--";
-  const date = new Date(value);
+  const rawValue = String(value);
+  if (rawValue.includes("T")) {
+    const date = new Date(rawValue);
+    if (Number.isNaN(date.getTime())) return value;
+    return date.toLocaleDateString("pt-BR", { timeZone: "UTC" });
+  }
+
+  const match = rawValue.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (match) {
+    const year = Number(match[1]);
+    const month = Number(match[2]) - 1;
+    const day = Number(match[3]);
+    const date = new Date(year, month, day);
+    return date.toLocaleDateString("pt-BR");
+  }
+
+  const date = new Date(rawValue);
   if (Number.isNaN(date.getTime())) return value;
   return date.toLocaleDateString("pt-BR");
 }

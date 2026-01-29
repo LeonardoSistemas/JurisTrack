@@ -44,7 +44,7 @@ export async function listUsers({ tenantId, status }) {
   return users;
 }
 
-export async function createUser({ email, password, role, tenantId, status }) {
+export async function createUser({ nome, email, password, role, tenantId, status }) {
   await ensureTenantExists(tenantId);
 
   const normalizedRole = assertRole(role);
@@ -54,6 +54,7 @@ export async function createUser({ email, password, role, tenantId, status }) {
   const passwordHash = await bcrypt.hash(validPassword, BCRYPT_COST);
 
   const user = await createUserRepository({
+    nome,
     email,
     passwordHash,
     role: normalizedRole,
@@ -74,7 +75,7 @@ export async function createUser({ email, password, role, tenantId, status }) {
 
 export async function updateUser(
   id,
-  { role, status, password, email, tenantId }
+  { nome, role, status, password, email, tenantId }
 ) {
   if (email !== undefined) {
     throw new ValidationError("E-mail não pode ser alterado.");
@@ -82,6 +83,10 @@ export async function updateUser(
   await ensureTenantExists(tenantId);
 
   const payload = {};
+
+  if (nome !== undefined) {
+    payload.nome = nome;
+  }
 
   if (role !== undefined) {
     payload.role = assertRole(role);

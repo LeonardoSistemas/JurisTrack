@@ -1,6 +1,7 @@
 import {
   cadastrarItem,
   cancelarItem,
+  buscarPublicacaoVinculada,
   listarPendentesPorUpload,
 } from "../services/conciliacaoService.js";
 import { ensureTenantAuthorization } from "../utils/authz.js";
@@ -89,5 +90,32 @@ export const listarPendentes = async (req, res) => {
       userId: req.user?.id,
     });
     return res.status(500).json({ error: error.message });
+  }
+};
+
+export const obterPublicacaoVinculada = async (req, res) => {
+  if (!ensureTenantAuthorization(req, res)) return;
+
+  try {
+    const { itemId } = req.params || {};
+    if (!itemId) {
+      return res.status(400).json({ error: "itemId é obrigatório" });
+    }
+
+    const result = await buscarPublicacaoVinculada({
+      itemId,
+      tenantId: req.tenantId,
+    });
+
+    return res.status(200).json(result);
+  } catch (error) {
+    const status = error.statusCode || 500;
+    logError("conciliacao.controller.publicacao_error", error.message, {
+      error,
+      tenantId: req.tenantId,
+      userId: req.user?.id,
+      itemId: req.params?.itemId,
+    });
+    return res.status(status).json({ error: error.message });
   }
 };

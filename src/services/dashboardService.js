@@ -1,3 +1,4 @@
+import supabase from "../config/supabase.js";
 import { withTenantFilter } from "../repositories/tenantScope.js";
 
 function todayDate() {
@@ -145,7 +146,7 @@ export async function getPrazosDetalhes(tenantId, options = {}) {
   const end = datePlusDays(7);
 
   let prazosQuery = withTenantFilter("Prazo", tenantId)
-    .select("id, descricao, data_limite, publicacaoid")
+    .select("id, descricao, data_limite, processoid, status_id")
     .gte("data_limite", start)
     .lte("data_limite", end)
     .order("data_limite", { ascending: true });
@@ -157,29 +158,9 @@ export async function getPrazosDetalhes(tenantId, options = {}) {
   if (error) throw error;
   if (!prazos || prazos.length === 0) return { items: [] };
 
-  const publicacaoIds = Array.from(
-    new Set(
-      prazos
-        .map((p) => p.publicacaoid)
-        .filter(Boolean)
-    )
-  );
-
-  let publicacoes = [];
-  if (publicacaoIds.length > 0) {
-    const { data: pubs, error: pubError } = await withTenantFilter(
-      "Publicacao",
-      tenantId
-    )
-      .select("id, processoid")
-      .in("id", publicacaoIds);
-    if (pubError) throw pubError;
-    publicacoes = pubs || [];
-  }
-
   const processIds = Array.from(
     new Set(
-      publicacoes
+      prazos
         .map((p) => p.processoid)
         .filter(Boolean)
     )
@@ -198,22 +179,41 @@ export async function getPrazosDetalhes(tenantId, options = {}) {
     processos = procs || [];
   }
 
+  const statusIds = Array.from(
+    new Set(
+      prazos
+        .map((p) => p.status_id)
+        .filter(Boolean)
+    )
+  );
+
+  let statuses = [];
+  if (statusIds.length > 0) {
+    const { data: statusData, error: statusError } = await supabase
+      .from("aux_status")
+      .select("id, nome, dominio")
+      .in("id", statusIds);
+    if (statusError) throw statusError;
+    statuses = statusData || [];
+  }
+
   const procById = new Map(
     processos.map((proc) => [proc.idprocesso, proc.numprocesso])
   );
-  const pubById = new Map(
-    publicacoes.map((pub) => [pub.id, pub.processoid])
+  const statusById = new Map(
+    statuses.map((status) => [status.id, status])
   );
 
   const items = prazos
     .map((p) => {
-      const procId = pubById.get(p.publicacaoid);
-      const numeroProcesso = procById.get(procId);
+      const numeroProcesso = procById.get(p.processoid);
       if (!numeroProcesso) return null;
       return {
         numeroProcesso,
         descricao: p.descricao || null,
         data_limite: p.data_limite || null,
+        status_id: p.status_id || null,
+        status: statusById.get(p.status_id) || null,
       };
     })
     .filter(Boolean);

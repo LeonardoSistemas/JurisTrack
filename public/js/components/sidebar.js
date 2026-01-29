@@ -17,6 +17,7 @@ class AppSidebar extends HTMLElement {
         <nav class="nav flex-column flex-grow-1">
             <small class="text-muted text-uppercase fw-bold mb-2 px-2" style="font-size: 0.75rem;">Principal</small>
             <a class="nav-link" href="/dashboard"><i class="fas fa-chart-line"></i> Dashboard</a>
+            <a class="nav-link" href="/fila-trabalho"><i class="fas fa-list-check"></i> Fila de Trabalho</a>
             <a class="nav-link" href="/upload"><i class="fas fa-cloud-upload-alt"></i> Análise de publicações</a>
             <a class="nav-link" href="/processos"><i class="fas fa-gavel"></i> Processos</a>
             
@@ -51,6 +52,9 @@ class AppSidebar extends HTMLElement {
                         <a class="nav-link" href="/comarcas">
                             <i class="fas fa-map-signs"></i> Comarcas
                         </a>
+                         <a class="nav-link" href="/tiposAndamento">
+                            <i class="fa-solid fa-sign-hanging"></i>Tipo de Andamento
+                        </a>
                         <a class="nav-link" href="/tribunais">
                             <i class="fas fa-landmark"></i> Tribunais
                         </a>
@@ -83,6 +87,32 @@ class AppSidebar extends HTMLElement {
                         </a>
                         <a class="nav-link" href="/tipoAcao">
                             <i class="fa-solid fa-align-right"></i> Tipo de Ações
+                        </a>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="mt-4">
+                <a class="d-flex justify-content-between align-items-center text-muted text-uppercase fw-bold px-2 text-decoration-none" 
+                   data-bs-toggle="collapse" href="#collapseConfiguracoesJuridicas" role="button" aria-expanded="false" aria-controls="collapseConfiguracoesJuridicas"
+                   style="font-size: 0.75rem;">
+                   <span>Configurações Jurídicas</span>
+                   <i class="fas fa-chevron-down ms-1" style="font-size: 0.65rem;"></i>
+                </a>
+                
+                <div class="collapse" id="collapseConfiguracoesJuridicas">
+                    <div class="nav flex-column mt-1">
+                        <a class="nav-link" href="/eventos">
+                            <i class="fas fa-calendar-check"></i> Eventos Processuais
+                        </a>
+                        <a class="nav-link" href="/eventos-mapeamentos">
+                            <i class="fas fa-link"></i> Mapeamentos de Andamentos
+                        </a>
+                        <a class="nav-link" href="/eventos-regras">
+                            <i class="fas fa-sitemap"></i> Regras Evento → Providência
+                        </a>
+                        <a class="nav-link" href="/providencias">
+                            <i class="fas fa-clipboard-list"></i> Providências e Checklists
                         </a>
                     </div>
                 </div>
@@ -167,6 +197,17 @@ class AppSidebar extends HTMLElement {
             this.setActive('/processos');
         } else if (currentPath.includes('/dashboard') || currentPath.includes('dashboard.html')) {
             this.setActive('/dashboard');
+        } else if (
+            currentPath.includes('/fila-trabalho') ||
+            currentPath.includes('filaTrabalho.html') ||
+            currentPath.includes('/tarefas-execucao') ||
+            currentPath.includes('tarefasExecucao.html')
+        ) {
+            this.setActive('/fila-trabalho');
+        } else if (currentPath.includes('/eventos-mapeamentos')) {
+            this.setActive('/eventos-mapeamentos');
+        } else if (currentPath.includes('/eventos-regras')) {
+            this.setActive('/eventos-regras');
         }
         // Add more specific logic if the generic loop didn't catch it
     }

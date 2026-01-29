@@ -11,9 +11,9 @@
 
     ## Referência do Template
 
-    - Template fonte: `./template/prd-template-analise-IA.md`
+    - Template fonte: `./docs/fila_de_trabalho.md`
     - Nome do arquivo final: `prd.md`
-    - Diretório final: `./tasks/prd-tipo_andamento-pub/` (nome em kebab-case)
+    - Diretório final: `./tasks/prd-reestrutura-prazo/` (nome em kebab-case)
 
     ## Fluxo de Trabalho
 

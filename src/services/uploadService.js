@@ -10,6 +10,9 @@ import { logError, logInfo, logWarn } from "../utils/logger.js";
 
 const Bucket_Name = "teste";
 
+
+// --- FUNÇÕES upload_Documentos / IA --
+
 export const uploadFileToStorage = async (
   file,
   numProcesso,
@@ -199,4 +202,127 @@ export const listAllDocuments = async (tenantId) => {
 
   if (error) throw error;
   return data;
+};
+
+
+// --- NOVAS FUNÇÕES: TABELA PROCESSO_DOC (FICHA DO PROCESSO) ---
+
+export const uploadFileToProcessoDoc = async (
+  file,
+  numProcesso,
+  processoId,
+  tenantId
+) => {
+  if (!tenantId) {
+    throw new ValidationError("tenantId é obrigatório.");
+  }
+
+  const safeName = generateSafeFilename(file.originalname);
+  
+  // Estratégia de pastas: tenantId / numProcesso (safe) / nomeArquivo
+  let filePath = safeName;
+  if (numProcesso && numProcesso.trim() !== "" && numProcesso !== "undefined") {
+      const pastaSegura = numProcesso.trim().replace(/[^a-zA-Z0-9.-]/g, "_"); 
+      filePath = `${pastaSegura}/${safeName}`;
+  }
+  
+  filePath = `${tenantId}/${filePath}`;
+
+  // 1. Upload para o Storage
+  const { error: uploadError } = await supabase.storage
+    .from(Bucket_Name)
+    .upload(filePath, file.buffer, {
+      cacheControl: "3600",
+      upsert: false,
+      contentType: file.mimetype,
+    });
+
+  if (uploadError) {
+      if (uploadError.statusCode === "409" || (uploadError.message && uploadError.message.includes("already exists"))) {
+          const error = new Error("Arquivo já existe no sistema (Duplicidade).");
+          error.statusCode = "409";
+          throw error;
+      }
+      throw uploadError;
+  }
+
+  // 2. Obter URL Pública
+  const { data: publicUrlData } = supabase.storage
+    .from(Bucket_Name)
+    .getPublicUrl(filePath);
+
+  // 3. Inserir na tabela processo_Doc
+  const localDateString = getCurrentSaoPauloTimestamp();
+  
+  const documentData = {
+    nome_arquivo: safeName,
+    url_publica: publicUrlData.publicUrl,
+    data_upload: localDateString,
+    status: 'anexado',
+    processo_id: processoId || null,
+    tipo: file.mimetype, 
+    tamanho: file.size
+  };
+
+  const { data: insertData, error: insertError } = await supabase
+    .from("processo_Doc")
+    .insert([injectTenant(documentData, tenantId)])
+    .select();
+
+  if (insertError) {
+      await supabase.storage.from(Bucket_Name).remove([filePath]);
+      throw insertError;
+  }
+  
+  return { fileName: safeName, publicUrl: publicUrlData.publicUrl, id: insertData[0].id };
+};
+
+export const listProcessoDocs = async (processoId, tenantId) => {
+    const { data, error } = await withTenantFilter(
+      "processo_Doc",
+      tenantId
+    )
+      .select("*")
+      .eq("processo_id", processoId)
+      .order("data_upload", { ascending: false });
+  
+    if (error) throw error;
+    return data;
+};
+
+export const deleteProcessoDoc = async (id, tenantId) => {
+  const { data: doc, error: fetchError } = await withTenantFilter(
+    "processo_Doc",
+    tenantId
+  )
+    .select("*")
+    .eq("id", id)
+    .maybeSingle();
+
+  if (fetchError) throw fetchError;
+  if (!doc) throw new Error("Documento não encontrado.");
+
+  if (doc.url_publica) {
+    try {
+      const bucketUrlPart = `/${Bucket_Name}/`;
+      const urlParts = doc.url_publica.split(bucketUrlPart);
+      if (urlParts.length > 1) {
+        const storagePath = decodeURIComponent(urlParts[1]);
+        await supabase.storage.from(Bucket_Name).remove([storagePath]);
+      }
+    } catch (err) {
+      logError("upload.processo_doc.storage_error", "Erro ao limpar storage", { error: err });
+    }
+  }
+
+  const { error: deleteError } = await withTenantFilter(
+    "processo_Doc",
+    tenantId
+  )
+    .delete()
+    .eq("id", id);
+
+  if (deleteError) throw deleteError;
+  
+  return true;
 };

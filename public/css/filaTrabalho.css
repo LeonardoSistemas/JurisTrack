@@ -1,0 +1,160 @@
+body {
+    background-color: #f8f9fa;
+}
+
+.layout-wrapper {
+    min-height: 100vh;
+    background-color: #f8f9fa;
+}
+
+.main-area {
+    background-color: #f8f9fa;
+}
+
+.filtro-card {
+    background: linear-gradient(180deg, #ffffff 0%, #f9fafb 100%);
+}
+
+.priority-dot {
+    width: 10px;
+    height: 10px;
+    display: inline-block;
+    border-radius: 999px;
+}
+
+.priority-critical {
+    background-color: #ef4444;
+}
+
+.priority-warning {
+    background-color: #f59e0b;
+}
+
+.priority-ok {
+    background-color: #22c55e;
+}
+
+.task-group {
+    border: none;
+    background: #ffffff;
+}
+
+.task-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.task-item {
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    padding: 14px;
+    background-color: #ffffff;
+    transition: box-shadow 0.2s ease, transform 0.2s ease;
+    cursor: pointer;
+}
+
+.task-item:hover {
+    box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
+    transform: translateY(-2px);
+}
+
+.task-item:focus-visible {
+    outline: 2px solid #2563eb;
+    outline-offset: 3px;
+}
+
+.task-item-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.task-title {
+    font-weight: 700;
+    color: #1f2937;
+    margin: 0;
+}
+
+.task-process {
+    font-family: monospace;
+    font-size: 0.9rem;
+    color: #2563eb;
+}
+
+.task-meta {
+    font-size: 0.85rem;
+    color: #6b7280;
+}
+
+.task-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+}
+
+.task-chip-critical {
+    background-color: #fee2e2;
+    color: #b91c1c;
+}
+
+.task-chip-warning {
+    background-color: #fef3c7;
+    color: #b45309;
+}
+
+.task-chip-ok {
+    background-color: #dcfce7;
+    color: #15803d;
+}
+
+.task-status {
+    font-size: 0.75rem;
+    font-weight: 600;
+    border-radius: 999px;
+    padding: 4px 8px;
+    color: #ffffff;
+    white-space: nowrap;
+}
+
+.task-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 10px;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.task-owner {
+    font-size: 0.8rem;
+    color: #4b5563;
+}
+
+.task-date {
+    font-size: 0.8rem;
+    color: #6b7280;
+}
+
+@media (max-width: 1199.98px) {
+    .task-group {
+        min-height: unset;
+    }
+}
+
+@media (max-width: 767.98px) {
+    .main-area {
+        padding: 1.5rem 1rem;
+    }
+
+    .task-item {
+        padding: 12px;
+    }
+}
