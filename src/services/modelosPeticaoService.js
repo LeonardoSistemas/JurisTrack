@@ -19,13 +19,21 @@ export const createModeloPeticao = async (dadosModelo, tenantId) => {
 /**
  * Lista todos os modelos de petição (apenas campos leves para listagem).
  */
-export const listModelosPeticao = async (tenantId) => {
-  const { data, error } = await withTenantFilter(
-    "Modelos_Peticao",
-    tenantId
-  )
-    .select("id, titulo, descricao, tags")
-    .order("created_at", { ascending: false });
+export const listModelosPeticao = async (tenantId, searchTerm = "") => {
+  const query = withTenantFilter("Modelos_Peticao", tenantId).select(
+    "id, titulo, descricao, tags"
+  );
+
+  const normalizedSearch = searchTerm.trim();
+  if (normalizedSearch) {
+    query.or(
+      `titulo.ilike.%${normalizedSearch}%,descricao.ilike.%${normalizedSearch}%`
+    );
+  }
+
+  const { data, error } = await query.order("created_at", {
+    ascending: false,
+  });
 
   if (error) throw error;
   return data;

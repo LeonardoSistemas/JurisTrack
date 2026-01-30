@@ -53,7 +53,11 @@ export const create = async (req, res) => {
 export const getAll = async (req, res) => {
   if (!ensureTenantAuthorization(req, res)) return;
   try {
-    const modelos = await modelosPeticaoService.listModelosPeticao(req.tenantId);
+    const searchTerm = typeof req.query.q === "string" ? req.query.q : "";
+    const modelos = await modelosPeticaoService.listModelosPeticao(
+      req.tenantId,
+      searchTerm
+    );
     res.status(200).json(modelos);
   } catch (error) {
     logError("modelosPeticao.controller.list_error", "Erro ao listar modelos de petição", {

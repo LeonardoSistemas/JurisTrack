@@ -8,6 +8,8 @@ const formError = document.getElementById("formError");
 const btnNovoModelo = document.getElementById("btnNovoModelo");
 const btnVoltarLista = document.getElementById("btnVoltarLista");
 const btnSalvarModelo = document.getElementById("btnSalvarModelo");
+const buscaInput = document.getElementById("buscaInput");
+const btnBuscar = document.getElementById("btnBuscar");
 
 // Tabela
 const tabelaBody = document.querySelector("#tabelaModelos tbody");
@@ -172,14 +174,25 @@ function renderizarVariaveis() {
   });
 }
 
+function getSearchTerm() {
+  return (buscaInput?.value || "").trim();
+}
+
+function setTableMessage(message) {
+  tabelaBody.innerHTML = `<tr><td colspan="4" class="text-center">${message}</td></tr>`;
+}
+
 /**
  * Carrega a tabela de modelos.
  */
 async function carregarModelos() {
   try {
-    tabelaBody.innerHTML =
-      '<tr><td colspan="4" class="text-center">Carregando...</td></tr>';
-    const response = await authFetch("/api/modelos-peticao");
+    setTableMessage("Carregando...");
+    const searchTerm = getSearchTerm();
+    const url = searchTerm
+      ? `/api/modelos-peticao?q=${encodeURIComponent(searchTerm)}`
+      : "/api/modelos-peticao";
+    const response = await authFetch(url);
 
     if (!response.ok) throw new Error("Falha ao carregar modelos.");
 
@@ -187,8 +200,11 @@ async function carregarModelos() {
     tabelaBody.innerHTML = "";
 
     if (modelos.length === 0) {
-      tabelaBody.innerHTML =
-        '<tr><td colspan="4" class="text-center">Nenhum modelo cadastrado.</td></tr>';
+      setTableMessage(
+        searchTerm
+          ? "Nenhum modelo encontrado para a busca."
+          : "Nenhum modelo cadastrado."
+      );
       return;
     }
 
@@ -384,6 +400,10 @@ selectCategoriaVariaveis.addEventListener("change", renderizarVariaveis);
 btnNovoModelo.addEventListener("click", iniciarCriacao);
 btnVoltarLista.addEventListener("click", mostrarLista);
 btnSalvarModelo.addEventListener("click", salvarModelo);
+btnBuscar?.addEventListener("click", carregarModelos);
+buscaInput?.addEventListener("keyup", (event) => {
+  if (event.key === "Enter") carregarModelos();
+});
 
 // Tabela Actions
 tabelaBody.addEventListener("click", (e) => {

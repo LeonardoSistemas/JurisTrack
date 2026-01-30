@@ -69,15 +69,41 @@ describe("modelosPeticaoService", () => {
     it("deve listar modelos do tenant", async () => {
       const mockData = [{ id: "1", titulo: "Modelo 1" }];
       const orderMock = jest.fn().mockResolvedValue({ data: mockData, error: null });
-      const selectMock = jest.fn().mockReturnValue({ order: orderMock });
-      
-      mockWithTenantFilter.mockReturnValue({ select: selectMock });
+      const builder = {
+        select: jest.fn(() => builder),
+        or: jest.fn(() => builder),
+        order: orderMock,
+      };
+
+      mockWithTenantFilter.mockReturnValue(builder);
 
       const result = await modelosPeticaoService.listModelosPeticao(tenantId);
 
       expect(result).toEqual(mockData);
       expect(mockWithTenantFilter).toHaveBeenCalledWith("Modelos_Peticao", tenantId);
-      expect(selectMock).toHaveBeenCalledWith("id, titulo, descricao, tags");
+      expect(builder.select).toHaveBeenCalledWith("id, titulo, descricao, tags");
+    });
+
+    it("aplica filtro por texto quando informado", async () => {
+      const mockData = [{ id: "2", titulo: "Petição Trabalhista" }];
+      const orderMock = jest.fn().mockResolvedValue({ data: mockData, error: null });
+      const builder = {
+        select: jest.fn(() => builder),
+        or: jest.fn(() => builder),
+        order: orderMock,
+      };
+
+      mockWithTenantFilter.mockReturnValue(builder);
+
+      const result = await modelosPeticaoService.listModelosPeticao(
+        tenantId,
+        "trabalhista"
+      );
+
+      expect(result).toEqual(mockData);
+      expect(builder.or).toHaveBeenCalledWith(
+        "titulo.ilike.%trabalhista%,descricao.ilike.%trabalhista%"
+      );
     });
   });
 
