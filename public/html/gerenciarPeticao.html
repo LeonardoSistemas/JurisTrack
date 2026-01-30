@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="pt-br">
   <head>
     <meta charset="UTF-8" />
@@ -8,142 +8,192 @@
       rel="stylesheet"
       href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
     />
-   
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    <!-- Seus estilos personalizados -->
+    <link
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"
+      rel="stylesheet"
+    />
     <link rel="stylesheet" href="/css/gerenciarPet.css?v=9999" />
-    <link rel="stylesheet" href="/css/menu.css">
-          
+    <link rel="stylesheet" href="/css/menu.css" />
+    <style>
+      .card-custom {
+        border: none;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        border-radius: 8px;
+      }
+      .text-end-actions {
+        text-align: right;
+      }
+    </style>
   </head>
   <body>
     <div class="d-flex">
-    <app-sidebar style="display: contents;"></app-sidebar>
-    <div class="container mt-4">
-      
-      <!-- ====================== SEÇÃO 1: LISTA DE MODELOS (TABELA) ====================== -->
-      <div id="section-lista">
-          <div class="d-flex justify-content-between align-items-center mb-4">
-            <!--<a href="/" class="btn btn-outline-secondary">
-              <i class="fas fa-arrow-left me-1"></i>
-              Voltar para Upload
-            </a>--->
-            <!-- Botão que aciona a troca de tela via JS -->
-            <button id="btnNovoModelo" class="btn btn-primary">
-                <i class="fas fa-plus me-1"></i> Nova Petição
-            </button>
-          </div>
+      <app-sidebar style="display: contents"></app-sidebar>
 
-          <div class="card shadow-sm mb-4">
-            <div class="card-header bg-white py-3">
-              <h5 class="mb-0 text-secondary"><i class="fas fa-folder-open me-2"></i>Petições Cadastradas</h5>
-            </div>
-            <div class="card-body p-0">
-              <div class="table-responsive">
-                <table id="tabelaModelos" class="table table-hover mb-0 align-middle">
-                  <thead class="table-light">
-                    <tr>
-                      <th style="width: 25%;">Título</th>
-                      <th style="width: 35%;">Descrição</th>
-                      <th style="width: 20%;">Tags</th>
-                      <th style="width: 20%; text-align: center;">Ações</th>
-                      </tr>
-                  </thead>
-                  <tbody>
-                    <!-- Preenchido via JS -->
-                  </tbody>
-                </table>
+      <div class="flex-grow-1 p-4" style="background-color: #f5f7fb">
+        <!-- ====================== SEÇÃO 1: LISTA DE MODELOS (TABELA) ====================== -->
+        <div id="section-lista">
+          <div class="card card-custom p-4 mb-4">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+              <div>
+                <h4>
+                  <i class="fas fa-file-contract me-2 text-primary"></i>Modelos de Petição
+                </h4>
+                <p class="text-muted mb-0">
+                  Gerencie as petições cadastradas no sistema
+                </p>
               </div>
             </div>
-          </div>
-      </div>
 
-      <!-- ====================== SEÇÃO 2: FORMULÁRIO DE EDIÇÃO/CRIAÇÃO ====================== -->
-      <div id="section-formulario" style="display: none;">
-          
+            <div id="alertArea" class="mb-3"></div>
+
+            <div class="d-flex gap-2 mb-3 flex-wrap">
+              <input
+                type="text"
+                id="buscaInput"
+                class="form-control"
+                placeholder="Buscar por título ou descrição..."
+              />
+              <button class="btn btn-outline-primary" id="btnBuscar">
+                <i class="fas fa-search me-1"></i>Buscar
+              </button>
+              <button class="btn btn-primary text-nowrap" id="btnNovoModelo">
+                <i class="fas fa-plus me-1"></i>Nova Petição
+              </button>
+            </div>
+
+            <div class="table-responsive bg-white rounded">
+              <table id="tabelaModelos" class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                  <tr>
+                    <th style="width: 25%">Título</th>
+                    <th style="width: 35%">Descrição</th>
+                    <th style="width: 20%">Tags</th>
+                    <th style="width: 20%" class="text-end">Ações</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <!-- Preenchido via JS -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- ====================== SEÇÃO 2: FORMULÁRIO DE EDIÇÃO/CRIAÇÃO ====================== -->
+        <div id="section-formulario" style="display: none">
           <!-- Cabeçalho do Formulário -->
-          <div class="d-flex justify-content-between align-items-center mb-3 pb-3 border-bottom">
-             <div>
-                 <button id="btnVoltarLista" class="btn btn-outline-secondary me-2">
-                     <i class="fas fa-arrow-left"></i> Voltar
-                 </button>
-                 <span class="h4 align-middle" id="tituloFormulario">Nova Petição</span>
-             </div>
-             <div>
-                 <button type="button" class="btn btn-primary px-4" id="btnSalvarModelo">
-                    <i class="fas fa-save me-2"></i> Salvar
-                 </button>
-             </div>
+          <div
+            class="d-flex justify-content-between align-items-center mb-3 pb-3 border-bottom"
+          >
+            <div>
+              <button id="btnVoltarLista" class="btn btn-outline-secondary me-2">
+                <i class="fas fa-arrow-left"></i> Voltar
+              </button>
+              <span class="h4 align-middle" id="tituloFormulario"
+                >Nova Petição</span
+              >
+            </div>
+            <div>
+              <button type="button" class="btn btn-primary px-4" id="btnSalvarModelo">
+                <i class="fas fa-save me-2"></i> Salvar
+              </button>
+            </div>
           </div>
 
           <div id="formError" class="alert alert-danger" style="display: none"></div>
 
           <div class="row">
-              <!-- COLUNA ESQUERDA: VARIÁVEIS -->
-              <div class="col-lg-3">
-                  <div class="card bg-light border-0 sticky-top" style="top: 20px; z-index: 100;">
-                      <div class="card-header bg-white border-bottom-0 pt-3">
-                          <h6 class="m-0 fw-bold text-primary"><i class="fas fa-magic me-1"></i> Campo da Petição</h6>
-                      </div>
-                      <div class="card-body">
-                          <p class="small text-muted mb-3" style="font-size: 0.8rem;">
-                              Arraste os campos abaixo para dentro do editor de texto.
-                          </p>
-                          
-                          <div class="mb-3">
-                              <select id="selectCategoriaVariaveis" class="form-select form-select-sm shadow-sm">
-                                  <option value="todos">Todas as Categorias</option>
-                                  <option value="processo">Dados do Processo</option>
-                                  <option value="partes">Partes (Cliente/Oposto)</option>
-                                  <option value="local">Localização (Fórum)</option>
-                                  <!---<option value="datas">Datas e Prazos</option>--->
-                              </select>
-                          </div>
+            <!-- COLUNA ESQUERDA: VARIÁVEIS -->
+            <div class="col-lg-3">
+              <div
+                class="card bg-light border-0 sticky-top"
+                style="top: 20px; z-index: 100"
+              >
+                <div class="card-header bg-white border-bottom-0 pt-3">
+                  <h6 class="m-0 fw-bold text-primary">
+                    <i class="fas fa-magic me-1"></i> Campo da Petição
+                  </h6>
+                </div>
+                <div class="card-body">
+                  <p class="small text-muted mb-3" style="font-size: 0.8rem">
+                    Arraste os campos abaixo para dentro do editor de texto.
+                  </p>
 
-                          <!-- Container onde as variáveis são injetadas -->
-                          <div id="painelVariaveis" class="variaveis-grid">
-                              <!-- JS preenche aqui -->
-                          </div>
-                      </div>
+                  <div class="mb-3">
+                    <select
+                      id="selectCategoriaVariaveis"
+                      class="form-select form-select-sm shadow-sm"
+                    >
+                      <option value="todos">Todas as Categorias</option>
+                      <option value="processo">Dados do Processo</option>
+                      <option value="partes">Partes (Cliente/Oposto)</option>
+                      <option value="local">Localização (Fórum)</option>
+                    </select>
                   </div>
+
+                  <!-- Container onde as variáveis são injetadas -->
+                  <div id="painelVariaveis" class="variaveis-grid">
+                    <!-- JS preenche aqui -->
+                  </div>
+                </div>
               </div>
-              <!-- COLUNA DIREITA: EDITOR E DADOS -->
-              <div class="col-lg-9">
-                  <div class="card mb-3 shadow-sm border-0">
-                      <div class="card-body">
-                          <form id="formModelo">
-                              <input type="hidden" id="formModeloId" />
-                
-                              <div class="row mb-3">
-                                  <div class="col-md-8">
-                                    <label for="formTitulo" class="form-label fw-bold">Título do Modelo *</label>
-                                    <input type="text" class="form-control" id="formTitulo" placeholder="Ex: Ação de Cobrança" required />
-                                  </div>
-                                  <div class="col-md-4">
-                                    <label for="formTags" class="form-label">Tags</label>
-                                    <input type="text" class="form-control" id="formTags" placeholder="Ex: civel, urgente" />
-                                  </div>
-                              </div>
-                
-                              <div class="mb-3">
-                                <label for="formDescricao" class="form-label">Descrição Breve</label>
-                                <input type="text" class="form-control" id="formDescricao" placeholder="Uma breve descrição sobre o que se trata esta petição." />
-                              </div>
-                          </form>
+            </div>
+            <!-- COLUNA DIREITA: EDITOR E DADOS -->
+            <div class="col-lg-9">
+              <div class="card mb-3 shadow-sm border-0">
+                <div class="card-body">
+                  <form id="formModelo">
+                    <input type="hidden" id="formModeloId" />
+
+                    <div class="row mb-3">
+                      <div class="col-md-8">
+                        <label for="formTitulo" class="form-label fw-bold"
+                          >Título do Modelo *</label
+                        >
+                        <input
+                          type="text"
+                          class="form-control"
+                          id="formTitulo"
+                          placeholder="Ex: Ação de Cobrança"
+                          required
+                        />
                       </div>
-                  </div>
-                    
-                  <div class="card shadow-sm border-0">
-                      <div class="card-body p-2">
-                          <!-- TINYMCE -->
-                          <textarea id="formConteudo" rows="25"></textarea>
+                      <div class="col-md-4">
+                        <label for="formTags" class="form-label">Tags</label>
+                        <input
+                          type="text"
+                          class="form-control"
+                          id="formTags"
+                          placeholder="Ex: civel, urgente"
+                        />
                       </div>
-                  </div>
+                    </div>
+
+                    <div class="mb-3">
+                      <label for="formDescricao" class="form-label"
+                        >Descrição Breve</label
+                      >
+                      <input
+                        type="text"
+                        class="form-control"
+                        id="formDescricao"
+                        placeholder="Uma breve descrição sobre o que se trata esta petição."
+                      />
+                    </div>
+                  </form>
+                </div>
               </div>
 
-              
+              <div class="card shadow-sm border-0">
+                <div class="card-body p-2">
+                  <!-- TINYMCE -->
+                  <textarea id="formConteudo" rows="25"></textarea>
+                </div>
+              </div>
+            </div>
           </div>
+        </div>
       </div>
-
     </div>
 
     <!-- MODAL DE DETALHES (Visualização Rápida) -->
@@ -152,20 +202,34 @@
         <div class="modal-content">
           <div class="modal-header">
             <h5 class="modal-title">Visualizar Modelo</h5>
-            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            <button
+              type="button"
+              class="btn-close"
+              data-bs-dismiss="modal"
+              aria-label="Close"
+            ></button>
           </div>
           <div class="modal-body">
             <h4 id="detalhesTitulo" class="mb-2 text-primary"></h4>
             <div class="mb-3">
-                <span id="detalhesTags" class="badge bg-secondary"></span>
+              <span id="detalhesTags" class="badge bg-secondary"></span>
             </div>
-            <p class="text-muted fst-italic border-bottom pb-2" id="detalhesDescricao"></p>
+            <p
+              class="text-muted fst-italic border-bottom pb-2"
+              id="detalhesDescricao"
+            ></p>
             <div class="p-3 bg-light border rounded">
-                <div id="detalhesConteudo"></div>
+              <div id="detalhesConteudo"></div>
             </div>
           </div>
           <div class="modal-footer">
-            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
+            <button
+              type="button"
+              class="btn btn-secondary"
+              data-bs-dismiss="modal"
+            >
+              Fechar
+            </button>
           </div>
         </div>
       </div>
@@ -175,10 +239,12 @@
     <div id="confirmDeleteBackdrop"></div>
     <div id="confirmDeleteBox" class="card shadow-lg p-4 text-center">
       <div class="text-danger mb-3">
-          <i class="fas fa-exclamation-circle fa-3x"></i>
+        <i class="fas fa-exclamation-circle fa-3x"></i>
       </div>
       <h5 class="mb-2">Tem certeza?</h5>
-      <p class="text-muted mb-4">Esta ação não poderá ser desfeita. O modelo será excluído permanentemente.</p>
+      <p class="text-muted mb-4">
+        Esta ação não poderá ser desfeita. O modelo será excluído permanentemente.
+      </p>
       <div class="d-flex justify-content-center gap-2">
         <button class="btn btn-secondary px-4" id="btnCancelDelete">Cancelar</button>
         <button class="btn btn-danger px-4" id="btnConfirmDelete">Sim, Excluir</button>
@@ -187,55 +253,58 @@
 
     <!-- SCRIPTS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="https://cdn.tiny.cloud/1/1m09uoqqoizka5fkvrogwkfp5zbhmcjh7qra3g1s9hj9x4rh/tinymce/6/tinymce.min.js" referrerpolicy="origin"></script>
-    
+    <script
+      src="https://cdn.tiny.cloud/1/1m09uoqqoizka5fkvrogwkfp5zbhmcjh7qra3g1s9hj9x4rh/tinymce/6/tinymce.min.js"
+      referrerpolicy="origin"
+    ></script>
+
     <!-- Importa o módulo JS com a lógica -->
     <script src="/js/modelosPet.js" type="module"></script>
-    
+
     <!-- Configuração do TinyMCE -->
     <script>
       document.addEventListener("DOMContentLoaded", () => {
         tinymce.init({
-          selector: '#formConteudo',
-          language: 'pt_BR', // Se tiver o pacote de tradução, senão usa padrão EN
-          plugins: 'anchor autolink charmap codesample emoticons image link lists media searchreplace table visualblocks wordcount fullscreen',
-          toolbar: 'undo redo | blocks fontfamily fontsize | bold italic underline | align left center right | bullist numlist outdent indent | table link | removeformat fullscreen',
+          selector: "#formConteudo",
+          language: "pt_BR", // Se tiver o pacote de tradução, senão usa padrão EN
+          plugins:
+            "anchor autolink charmap codesample emoticons image link lists media searchreplace table visualblocks wordcount fullscreen",
+          toolbar:
+            "undo redo | blocks fontfamily fontsize | bold italic underline | align left center right | bullist numlist outdent indent | table link | removeformat fullscreen",
           height: 600,
           menubar: false,
           branding: false,
           elementpath: false,
           setup: function (editor) {
             // Salva o conteúdo na textarea a cada alteração
-            editor.on('change', () => {
+            editor.on("change", () => {
               editor.save();
             });
-            
+
             // Lógica para aceitar o DROP das variáveis
-            editor.on('drop', (e) => {
-                const dataTransfer = e.dataTransfer.getData("text/plain");
-                if (dataTransfer) {
-                    try {
-                        const data = JSON.parse(dataTransfer);
-                        // Se for uma variável nossa
-                        if (data.templateVar) {
-                            e.preventDefault();
-                            // Insere a variável e um espaço
-                            // O span visual ajuda a identificar que é uma variável
-                            /*editor.execCommand('mceInsertContent', false, `<span style="background-color: #e9ecef; border: 1px dashed #ccc; padding: 2px 5px; border-radius: 4px;">${data.templateVar}</span>&nbsp;`);*/
-                            editor.execCommand('mceInsertContent', false, data.templateVar);
-                        }
-                    } catch (err) {
-                        // Ignora drops que não sejam JSON (ex: arrastar texto normal)
-                        console.log("Drop externo ou texto simples.");
-                    }
+            editor.on("drop", (e) => {
+              const dataTransfer = e.dataTransfer.getData("text/plain");
+              if (dataTransfer) {
+                try {
+                  const data = JSON.parse(dataTransfer);
+                  // Se for uma variável nossa
+                  if (data.templateVar) {
+                    e.preventDefault();
+                    // Insere a variável e um espaço
+                    // O span visual ajuda a identificar que é uma variável
+                    /*editor.execCommand('mceInsertContent', false, `<span style="background-color: #e9ecef; border: 1px dashed #ccc; padding: 2px 5px; border-radius: 4px;">${data.templateVar}</span>&nbsp;`);*/
+                    editor.execCommand("mceInsertContent", false, data.templateVar);
+                  }
+                } catch (err) {
+                  // Ignora drops que não sejam JSON (ex: arrastar texto normal)
+                  console.log("Drop externo ou texto simples.");
                 }
+              }
             });
-          }
+          },
         });
       });
     </script>
     <script src="/js/components/sidebar.js"></script>
   </body>
 </html>
-
-

@@ -203,7 +203,7 @@ async function carregarModelos() {
         <td>${modelo.titulo || "N/A"}</td>
         <td>${modelo.descricao || "N/A"}</td>
         <td>${tagsString}</td>
-        <td>
+        <td class="text-end">
           <button class="btn btn-sm btn-success btn-details" data-id="${
             modelo.id
           }" title="Detalhes">
