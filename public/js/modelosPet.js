@@ -179,7 +179,7 @@ async function carregarModelos() {
   try {
     tabelaBody.innerHTML =
       '<tr><td colspan="4" class="text-center">Carregando...</td></tr>';
-    const response = await authFetch("/modelos");
+    const response = await authFetch("/api/modelos-peticao");
 
     if (!response.ok) throw new Error("Falha ao carregar modelos.");
 
@@ -252,7 +252,7 @@ function iniciarCriacao() {
  */
 async function iniciarEdicao(id) {
   try {
-    const response = await authFetch(`/modelos/${id}`);
+    const response = await authFetch(`/api/modelos-peticao/${id}`);
     if (!response.ok) throw new Error("Erro ao buscar modelo.");
     const modelo = await response.json();
 
@@ -283,7 +283,7 @@ async function abrirModalDetalhes(id) {
     detalhesConteudo.textContent = "...";
     detalhesModal.show();
 
-    const response = await authFetch(`/modelos/${id}`);
+    const response = await authFetch(`/api/modelos-peticao/${id}`);
     if (!response.ok) throw new Error("Falha ao buscar detalhes.");
     const modelo = await response.json();
 
@@ -305,7 +305,7 @@ async function abrirModalDetalhes(id) {
  */
 async function salvarModelo() {
   const id = formModeloId.value;
-  const url = id ? `/modelos/${id}` : "/modelos";
+  const url = id ? `/api/modelos-peticao/${id}` : "/api/modelos-peticao";
   const method = id ? "PUT" : "POST";
 
   const conteudoDoEditor = tinymce.get("formConteudo").getContent();
@@ -360,7 +360,7 @@ async function deletarModelo() {
   if (!deleteId) return;
 
   try {
-    const response = await authFetch(`/modelos/${deleteId}`, { method: "DELETE" });
+    const response = await authFetch(`/api/modelos-peticao/${deleteId}`, { method: "DELETE" });
     if (!response.ok) throw new Error("Falha ao deletar.");
 
     hideDeleteConfirmation();

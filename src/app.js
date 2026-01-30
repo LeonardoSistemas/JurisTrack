@@ -66,7 +66,7 @@ app.get("/upload", (req, res) => {
 app.use("/upload", uploadRoute);
 app.use("/n8n", n8nRoute);
 app.use("/", modalRoute);
-app.use("/modelos", modelosRoute);
+app.use("/api/modelos-peticao", modelosRoute);
 app.use("/peticoes-finalizadas", peticaoRoute);
 app.use("/api/auth", authRoute);
 app.use("/api/internal", internalRoute);

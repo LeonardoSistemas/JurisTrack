@@ -599,7 +599,7 @@ async function carregarModelosDisponiveis() {
   showModelosAlert("info", "Carregando modelos disponíveis...");
 
   try {
-    const response = await authFetch("/modelos");
+    const response = await authFetch("/api/modelos-peticao");
     const data = await response.json().catch(() => []);
     if (!response.ok) {
       throw new Error(data?.error || "Erro ao buscar modelos.");

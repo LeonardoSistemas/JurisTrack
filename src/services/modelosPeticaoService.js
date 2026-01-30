@@ -2,10 +2,10 @@ import supabase from "../config/supabase.js";
 import { injectTenant, withTenantFilter } from "../repositories/tenantScope.js";
 
 /**
- * Cria um novo modelo no banco.
+ * Cria um novo modelo de petição no banco.
  * @param {Object} dadosModelo - Objeto contendo titulo, descricao, conteudo, tags
  */
-export const createModelo = async (dadosModelo, tenantId) => {
+export const createModeloPeticao = async (dadosModelo, tenantId) => {
   const { data, error } = await supabase
     .from("Modelos_Peticao")
     .insert([injectTenant(dadosModelo, tenantId)])
@@ -17,9 +17,9 @@ export const createModelo = async (dadosModelo, tenantId) => {
 };
 
 /**
- * Lista todos os modelos (apenas campos leves para listagem).
+ * Lista todos os modelos de petição (apenas campos leves para listagem).
  */
-export const listModelos = async (tenantId) => {
+export const listModelosPeticao = async (tenantId) => {
   const { data, error } = await withTenantFilter(
     "Modelos_Peticao",
     tenantId
@@ -32,9 +32,9 @@ export const listModelos = async (tenantId) => {
 };
 
 /**
- * Busca um modelo completo pelo ID.
+ * Busca um modelo de petição completo pelo ID.
  */
-export const getModeloById = async (id, tenantId) => {
+export const getModeloPeticaoById = async (id, tenantId) => {
   const { data, error } = await withTenantFilter(
     "Modelos_Peticao",
     tenantId
@@ -48,9 +48,9 @@ export const getModeloById = async (id, tenantId) => {
 };
 
 /**
- * Atualiza um modelo existente.
+ * Atualiza um modelo de petição existente.
  */
-export const updateModelo = async (id, dadosAtualizados, tenantId) => {
+export const updateModeloPeticao = async (id, dadosAtualizados, tenantId) => {
   const payload = { ...dadosAtualizados };
   delete payload.tenant_id;
 
@@ -68,9 +68,9 @@ export const updateModelo = async (id, dadosAtualizados, tenantId) => {
 };
 
 /**
- * Deleta um modelo.
+ * Deleta um modelo de petição.
  */
-export const deleteModelo = async (id, tenantId) => {
+export const deleteModeloPeticao = async (id, tenantId) => {
   const { data, error } = await withTenantFilter(
     "Modelos_Peticao",
     tenantId

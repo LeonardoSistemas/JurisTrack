@@ -37,9 +37,6 @@ class AppSidebar extends HTMLElement {
                         <a class="nav-link" href="/importar-feriados">
                             <i class="fas fa-calendar-alt"></i> Cadastros de Feriados
                         </a>
-                        <a class="nav-link" href="/gerenciarPeticao">
-                            <i class="fas fa-file-contract"></i> Modelos
-                        </a>
                         <a class="nav-link" href="/historico">
                             <i class="fas fa-history"></i> Histórico
                         </a>
@@ -113,6 +110,9 @@ class AppSidebar extends HTMLElement {
                         </a>
                         <a class="nav-link" href="/providencias">
                             <i class="fas fa-clipboard-list"></i> Providências e Checklists
+                        </a>
+                        <a class="nav-link" href="/gerenciarPeticao">
+                            <i class="fas fa-file-contract"></i> Modelo de petição
                         </a>
                     </div>
                 </div>

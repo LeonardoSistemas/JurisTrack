@@ -1,4 +1,4 @@
-import * as modelosService from "../services/modelosService.js";
+import * as modelosPeticaoService from "../services/modelosPeticaoService.js";
 import { ensureTenantAuthorization } from "../utils/authz.js";
 import { logError, logWarn } from "../utils/logger.js";
 
@@ -19,7 +19,7 @@ export const create = async (req, res) => {
 
   // Validação
   if (!titulo || !conteudo) {
-    logWarn("modelos.controller.validation", "Título e Conteúdo são obrigatórios.", {
+    logWarn("modelosPeticao.controller.validation", "Título e Conteúdo são obrigatórios.", {
       tenantId: req.tenantId,
       userId: req.user?.id,
     });
@@ -29,7 +29,7 @@ export const create = async (req, res) => {
   try {
     const tagsArray = processTags(tags);
     
-    const novoModelo = await modelosService.createModelo(
+    const novoModelo = await modelosPeticaoService.createModeloPeticao(
       {
         titulo,
         descricao,
@@ -41,7 +41,7 @@ export const create = async (req, res) => {
 
     res.status(201).json(novoModelo);
   } catch (error) {
-    logError("modelos.controller.create_error", "Erro ao criar modelo", {
+    logError("modelosPeticao.controller.create_error", "Erro ao criar modelo de petição", {
       tenantId: req.tenantId,
       userId: req.user?.id,
       error,
@@ -53,10 +53,10 @@ export const create = async (req, res) => {
 export const getAll = async (req, res) => {
   if (!ensureTenantAuthorization(req, res)) return;
   try {
-    const modelos = await modelosService.listModelos(req.tenantId);
+    const modelos = await modelosPeticaoService.listModelosPeticao(req.tenantId);
     res.status(200).json(modelos);
   } catch (error) {
-    logError("modelos.controller.list_error", "Erro ao listar modelos", {
+    logError("modelosPeticao.controller.list_error", "Erro ao listar modelos de petição", {
       tenantId: req.tenantId,
       userId: req.user?.id,
       error,
@@ -70,15 +70,15 @@ export const getById = async (req, res) => {
   const { id } = req.params;
 
   try {
-    const modelo = await modelosService.getModeloById(id, req.tenantId);
+    const modelo = await modelosPeticaoService.getModeloPeticaoById(id, req.tenantId);
 
     if (!modelo) {
-      return res.status(404).json({ error: "Modelo não encontrado." });
+      return res.status(404).json({ error: "Modelo de petição não encontrado." });
     }
 
     res.status(200).json(modelo);
   } catch (error) {
-    logError("modelos.controller.fetch_error", "Erro ao buscar modelo", {
+    logError("modelosPeticao.controller.fetch_error", "Erro ao buscar modelo de petição", {
       tenantId: req.tenantId,
       userId: req.user?.id,
       modeloId: id,
@@ -94,7 +94,7 @@ export const update = async (req, res) => {
   const { titulo, descricao, tags, conteudo } = req.body;
 
   if (!titulo || !conteudo) {
-    logWarn("modelos.controller.validation", "Título e Conteúdo são obrigatórios.", {
+    logWarn("modelosPeticao.controller.validation", "Título e Conteúdo são obrigatórios.", {
       tenantId: req.tenantId,
       userId: req.user?.id,
       modeloId: id,
@@ -105,7 +105,7 @@ export const update = async (req, res) => {
   try {
     const tagsArray = processTags(tags);
 
-    const modeloAtualizado = await modelosService.updateModelo(
+    const modeloAtualizado = await modelosPeticaoService.updateModeloPeticao(
       id,
       {
         titulo,
@@ -117,12 +117,12 @@ export const update = async (req, res) => {
     );
 
     if (!modeloAtualizado) {
-      return res.status(404).json({ error: "Modelo não encontrado." });
+      return res.status(404).json({ error: "Modelo de petição não encontrado." });
     }
 
     res.status(200).json(modeloAtualizado);
   } catch (error) {
-    logError("modelos.controller.update_error", "Erro ao atualizar modelo", {
+    logError("modelosPeticao.controller.update_error", "Erro ao atualizar modelo de petição", {
       tenantId: req.tenantId,
       userId: req.user?.id,
       modeloId: id,
@@ -137,18 +137,18 @@ export const remove = async (req, res) => {
   const { id } = req.params;
 
   try {
-    const modeloDeletado = await modelosService.deleteModelo(
+    const modeloDeletado = await modelosPeticaoService.deleteModeloPeticao(
       id,
       req.tenantId
     );
 
     if (!modeloDeletado) {
-      return res.status(404).json({ error: "Modelo não encontrado." });
+      return res.status(404).json({ error: "Modelo de petição não encontrado." });
     }
 
-    res.status(200).json({ message: "Modelo deletado com sucesso.", data: modeloDeletado });
+    res.status(200).json({ message: "Modelo de petição deletado com sucesso.", data: modeloDeletado });
   } catch (error) {
-    logError("modelos.controller.delete_error", "Erro ao deletar modelo", {
+    logError("modelosPeticao.controller.delete_error", "Erro ao deletar modelo de petição", {
       tenantId: req.tenantId,
       userId: req.user?.id,
       modeloId: id,

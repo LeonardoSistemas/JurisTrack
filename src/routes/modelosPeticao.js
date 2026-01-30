@@ -1,6 +1,6 @@
 import express from "express";
 import { tenantContextMiddleware } from "../middlewares/tenantContextMiddleware.js";
-import * as modelosController from "../controllers/modelosController.js";
+import * as modelosController from "../controllers/modelosPeticaoController.js";
 
 const router = express.Router();
 

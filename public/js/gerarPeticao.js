@@ -137,7 +137,7 @@ function formatarDataParaBr(dataString) {
  */
 async function carregarModelosDropdown() {
   try {
-    const r = await authFetch("/modelos");
+    const r = await authFetch("/api/modelos-peticao");
     const m = await r.json();
 
     selectModelo.innerHTML =
@@ -168,7 +168,7 @@ async function buscarModeloCompleto(id) {
   try {
     editor.setProgressState(true);
 
-    const response = await authFetch(`/modelos/${id}`);
+    const response = await authFetch(`/api/modelos-peticao/${id}`);
     const modelo = await response.json();
     let texto = modelo.conteudo || "";
 

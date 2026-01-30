@@ -12,16 +12,16 @@ import {
 const listModelosMock = jest.fn();
 const createModeloMock = jest.fn();
 
-jest.unstable_mockModule("../../src/services/modelosService.js", () => ({
+jest.unstable_mockModule("../../src/services/modelosPeticaoService.js", () => ({
   __esModule: true,
-  listModelos: listModelosMock,
-  createModelo: createModeloMock,
-  getModeloById: jest.fn(),
-  updateModelo: jest.fn(),
-  deleteModelo: jest.fn(),
+  listModelosPeticao: listModelosMock,
+  createModeloPeticao: createModeloMock,
+  getModeloPeticaoById: jest.fn(),
+  updateModeloPeticao: jest.fn(),
+  deleteModeloPeticao: jest.fn(),
 }));
 
-describe("Contrato API /api/modelos com isolamento por tenant", () => {
+describe("Contrato API /api/modelos-peticao com isolamento por tenant", () => {
   let app;
   let defaultToken;
   let otherToken;
@@ -33,7 +33,7 @@ describe("Contrato API /api/modelos com isolamento por tenant", () => {
 
     app = express();
     app.use(express.json());
-    app.use("/api/modelos", modelosRoute);
+    app.use("/api/modelos-peticao", modelosRoute);
 
     defaultToken = signAuthToken({
       userId: "user-1",
@@ -66,13 +66,13 @@ describe("Contrato API /api/modelos com isolamento por tenant", () => {
   });
 
   it("bloqueia acesso sem token", async () => {
-    const res = await request(app).get("/api/modelos");
+    const res = await request(app).get("/api/modelos-peticao");
     expect(res.status).toBe(401);
   });
 
   it("lista modelos apenas do tenant do token", async () => {
     const res = await request(app)
-      .get("/api/modelos")
+      .get("/api/modelos-peticao")
       .set("Authorization", `Bearer ${defaultToken}`);
 
     expect(res.status).toBe(200);
@@ -81,7 +81,7 @@ describe("Contrato API /api/modelos com isolamento por tenant", () => {
     expect(listModelosMock).toHaveBeenCalledWith(DEFAULT_TENANT_ID);
 
     const resOther = await request(app)
-      .get("/api/modelos")
+      .get("/api/modelos-peticao")
       .set("Authorization", `Bearer ${otherToken}`);
 
     expect(resOther.status).toBe(200);
@@ -91,7 +91,7 @@ describe("Contrato API /api/modelos com isolamento por tenant", () => {
 
   it("ignora tenant_id da payload e usa tenant do token na criação", async () => {
     const res = await request(app)
-      .post("/api/modelos")
+      .post("/api/modelos-peticao")
       .set("Authorization", `Bearer ${defaultToken}`)
       .send({
         titulo: "Novo Modelo",
@@ -109,5 +109,3 @@ describe("Contrato API /api/modelos com isolamento por tenant", () => {
     expect(db[OTHER_TENANT_ID]).toHaveLength(modelosByTenant[OTHER_TENANT_ID].length);
   });
 });
-
-
