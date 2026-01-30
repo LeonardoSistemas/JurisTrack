@@ -11,7 +11,7 @@
 
     ## Referência do Template
 
-    - Template fonte: `./docs/fila_de_trabalho.md`
+    - Template fonte: `./docs/ciclo_vida_peticao.md`
     - Nome do arquivo final: `prd.md`
     - Diretório final: `./tasks/prd-reestrutura-prazo/` (nome em kebab-case)
 
