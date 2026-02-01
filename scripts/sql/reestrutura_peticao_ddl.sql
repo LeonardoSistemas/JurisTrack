@@ -14,13 +14,27 @@ begin
     create table if not exists public.peticionamento_providencia (
       id uuid primary key default gen_random_uuid(),
       tarefa_id uuid,
-      processo_id integer,
+      processo_id uuid,
       processo_doc_id uuid,
       status_id uuid,
       caminho_arquivo text,
       created_at timestamptz not null default now()
     )
   ';
+
+  if exists (
+    select 1
+    from information_schema.columns
+    where table_schema = 'public'
+      and table_name = 'peticionamento_providencia'
+      and column_name = 'processo_id'
+      and data_type = 'integer'
+  ) then
+    execute '
+      alter table public.peticionamento_providencia
+      alter column processo_id type uuid using null::uuid
+    ';
+  end if;
 
   if to_regclass('public.tarefa_fila_trabalho') is not null then
     if not exists (
